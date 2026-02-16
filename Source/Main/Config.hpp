@@ -1,5 +1,4 @@
-#ifndef GLOBAL_HPP
-#define GLOBAL_HPP
+#pragma once
 
 #include <string>
 #include "../Network/Network.hpp"
