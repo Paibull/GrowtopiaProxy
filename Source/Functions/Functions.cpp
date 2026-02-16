@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Functions.hpp"
 
 #ifdef _WIN32
@@ -173,6 +173,18 @@ bool Packet::ContainsValue(const std::string& packet, const std::string& key) {
     }
     else return false;
 }
+template bool Packet::ContainsValue<std::string>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<int>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<unsigned int>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<long>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<unsigned long>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<long long>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<unsigned long long>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<short>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<unsigned short>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<char>(const std::string&, const std::string&);
+template bool Packet::ContainsValue<unsigned char>(const std::string&, const std::string&);
+
 
 template <typename T>
 T Packet::ExtractValue(const std::string& packet, const std::string& key, T defaultValue) {
@@ -191,6 +203,17 @@ T Packet::ExtractValue(const std::string& packet, const std::string& key, T defa
     }
     else return defaultValue;
 }
+template std::string Packet::ExtractValue<std::string>(const std::string&, const std::string&, std::string);
+template int Packet::ExtractValue<int>(const std::string&, const std::string&, int);
+template unsigned int Packet::ExtractValue<unsigned int>(const std::string&, const std::string&, unsigned int);
+template long Packet::ExtractValue<long>(const std::string&, const std::string&, long);
+template unsigned long Packet::ExtractValue<unsigned long>(const std::string&, const std::string&, unsigned long);
+template long long Packet::ExtractValue<long long>(const std::string&, const std::string&, long long);
+template unsigned long long Packet::ExtractValue<unsigned long long>(const std::string&, const std::string&, unsigned long long);
+template short Packet::ExtractValue<short>(const std::string&, const std::string&, short);
+template unsigned short Packet::ExtractValue<unsigned short>(const std::string&, const std::string&, unsigned short);
+template char Packet::ExtractValue<char>(const std::string&, const std::string&, char);
+template unsigned char Packet::ExtractValue<unsigned char>(const std::string&, const std::string&, unsigned char);
 
 template<typename T>
 T Packet::ExtractCustom(const std::string& data, const std::string& starter, size_t startIndex, const std::string& delimiter) {
@@ -216,8 +239,17 @@ T Packet::ExtractCustom(const std::string& data, const std::string& starter, siz
     else static_assert(!sizeof(T*), "Unsupported type");
 }
 template std::string Packet::ExtractCustom<std::string>(const std::string&, const std::string&, size_t, const std::string&);
-template uint16_t Packet::ExtractCustom<uint16_t>(const std::string&, const std::string&, size_t, const std::string&);
 template int Packet::ExtractCustom<int>(const std::string&, const std::string&, size_t, const std::string&);
+template unsigned int Packet::ExtractCustom<unsigned int>(const std::string&, const std::string&, size_t, const std::string&);
+template long Packet::ExtractCustom<long>(const std::string&, const std::string&, size_t, const std::string&);
+template unsigned long Packet::ExtractCustom<unsigned long>(const std::string&, const std::string&, size_t, const std::string&);
+template long long Packet::ExtractCustom<long long>(const std::string&, const std::string&, size_t, const std::string&);
+template unsigned long long Packet::ExtractCustom<unsigned long long>(const std::string&, const std::string&, size_t, const std::string&);
+template short Packet::ExtractCustom<short>(const std::string&, const std::string&, size_t, const std::string&);
+template unsigned short Packet::ExtractCustom<unsigned short>(const std::string&, const std::string&, size_t, const std::string&);
+template char Packet::ExtractCustom<char>(const std::string&, const std::string&, size_t, const std::string&);
+template unsigned char Packet::ExtractCustom<unsigned char>(const std::string&, const std::string&, size_t, const std::string&);
+
 
 bool Packet::Change(std::string& data, const std::string& starter, size_t startIndex, const std::string& delimiter, const std::string& newValue) {
     size_t start = 0;
