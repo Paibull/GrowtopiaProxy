@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ENET/enet.h>
+#include "ENET/enet.h"
 #include <string>
 #include <unordered_map>
 
@@ -183,4 +183,5 @@ private:
     ENetAddress SERVER_ADDRESS;
 
 };
+
 extern NetworkManager Network;
