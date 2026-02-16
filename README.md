@@ -1,0 +1,2 @@
+# GrowtopiaProxy
+Proxy GT
