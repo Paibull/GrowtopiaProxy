@@ -1,4 +1,4 @@
-﻿#include "Http.hpp"
+#include "Http.hpp"
 #include "../Logger/Logger.hpp"
 #include "../Main/Config.hpp"
 #include "../Functions/Functions.hpp"
@@ -78,7 +78,7 @@ bool HttpManager::Fetcher() {
     System::editHosts(Local.IP);
     Sleep(1000);
 
-    LOG_INFO("Fetched the api www.growtopia.com");
+    LOG_INFO("Fetched the api www.growtopia2.com");
     return true;
 }
 
@@ -86,6 +86,15 @@ void HttpManager::Injector() {
     using namespace httplib;
 
     FastLog::Logger::set_thread_name("HTTP");
+
+    ensure_cert_files_exist();
+
+    const char* cert_file = "growtopia.pem";
+    const char* key_file = "growtopia.key.pem";
+
+    while (!std::filesystem::exists(cert_file) || !std::filesystem::exists(key_file)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
 
     SSLServer svr("growtopia.pem", "growtopia.key.pem");
     if (!svr.is_valid()) {
