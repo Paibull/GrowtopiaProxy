@@ -60,6 +60,3 @@ inline bool ShouldLogNetMessage(int type, int extra = 0) {
         { return true; }
     }
 }
-
-
-#endif
