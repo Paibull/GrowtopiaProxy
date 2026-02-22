@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+#include <algorithm>
 #include <string>
 #include "../Network/Network.hpp"
 
@@ -43,8 +45,8 @@ inline bool ShouldLogNetMessage(int type, int extra = 0) {
         case Network.NET_MESSAGE_GAME_PACKET: {
             switch (extra) {
                 case Network.LOG_NET_MESSAGE_GAME_PACKET_BASIC: return true;
+                case Network.LOG_NET_MESSAGE_GAME_PACKET_BASIC_CLEAR_SPAM: return true;
                 case Network.LOG_NET_MESSAGE_GAME_PACKET_PLAYER_MOVING: return true;
-                case Network.LOG_NET_MESSAGE_GAME_PACKET_PLAYER_MOVING_CLEAR_SPAM: return true;
                 default: return true;
             }
         }
