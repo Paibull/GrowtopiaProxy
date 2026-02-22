@@ -135,6 +135,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>enet.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <AdditionalOptions>/NODEFAULTLIB:MSVCRTD.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -145,6 +146,7 @@
     <ClCompile Include="Network\Handler.cpp" />
     <ClCompile Include="Network\Network.cpp" />
     <ClCompile Include="Packets\Packets.cpp" />
+    <ClCompile Include="Player\Player.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Functions\Functions.hpp" />
@@ -153,7 +155,12 @@
     <ClInclude Include="Main\Config.hpp" />
     <ClInclude Include="Network\Handler.hpp" />
     <ClInclude Include="Network\Network.hpp" />
+    <ClInclude Include="Network\NET_MESSAGE_GAME_PACKET\PACKET_CALL_FUNCTION.hpp" />
+    <ClInclude Include="Network\NET_MESSAGE_GAME_PACKET\PACKET_MODIFY_ITEM_INVENTORY.hpp" />
+    <ClInclude Include="Network\NET_MESSAGE_GAME_PACKET\PACKET_SEND_INVENTORY_STATE.hpp" />
+    <ClInclude Include="Network\NET_MESSAGE_GAME_PACKET\PACKET_STATE.hpp" />
     <ClInclude Include="Packets\Packets.hpp" />
+    <ClInclude Include="Player\Player.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
