@@ -95,7 +95,7 @@ bool HandlePacket(int type, ENetPacket* packet, ENetPeer* to) {
                 if (action == "input") {
                     std::string command = Packet::ExtractValue<std::string>(text, "text", "");
                     
-                    if (!text.empty() && text[0] == '/') {
+                    if (!command.empty() && command[0] == '/') {
                         if (Packet::Contains(command, "/wd ") || Packet::Contains(command, "/dd ") || Packet::Contains(command, "/bd ")) {
                             std::string item_name = "World Lock";
                             int item_id = 242;
