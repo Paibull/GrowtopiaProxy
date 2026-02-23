@@ -32,6 +32,7 @@ Server -> Proxy -> Client
     - [x] Modifying the real-time packets
     - [x] Creating and sending custom packets
  - [x] Advanced custom log system
+ - [x] Inventory system
 --- 
 
 ## Getting Started
