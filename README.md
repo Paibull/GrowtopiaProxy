@@ -6,6 +6,7 @@ Growtopia Bridge Proxy is a powerful tool that sits between the Growtopia client
 ## 🛠 Features  
 - **Bidirectional traffic handling:**
 Client -> Proxy -> Server
+and
 Server -> Proxy -> Client
 
 - **Packet logging for monitoring and debugging** 
