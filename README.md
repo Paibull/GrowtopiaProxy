@@ -28,11 +28,11 @@ Server -> Proxy -> Client
 
 - [x] Fetching the real Growtopia server credentials
 - [x] In-Built HTTP Server
-- [x] In-Built Network Servers(2):
+- [x] In-Built Network Server and Client:
     - [x] Debugging all the packets
     - [x] Modifying the real-time packets
     - [x] Creating and sending custom packets
- - [x] Advanced custom log system
+ - [x] Advanced log system
  - [x] Inventory system
 --- 
 
