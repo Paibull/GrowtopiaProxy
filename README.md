@@ -49,6 +49,7 @@ git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
 .bootstrap-vcpkg.bat
 .vcpkg install openssl:x64-windows
+.vcpkg integrate install
 ```
 
 ### 3. Configure in Visual Studio
