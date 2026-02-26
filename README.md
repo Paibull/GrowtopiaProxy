@@ -33,7 +33,18 @@ Server -> Proxy -> Client
     - [x] Modifying the real-time packets
     - [x] Creating and sending custom packets
  - [x] Advanced log system
- - [x] Inventory system
+
+--- 
+
+---
+
+## 🛠 Feautures
+
+- [x] Slash command /ping : Shows your current Client->Proxy and Proxy->Server pings
+- [x] Slash command /wd <amount> : Drops the amount of World Locks
+- [x] Slash command /dd <amount> : Drops the amount of Diamond Locks
+- [x] Slash command /bd <amount> : Drops the amount of Blue Gem Locks
+
 --- 
 
 ## Getting Started
