@@ -13,6 +13,7 @@ struct gLocal {
 };
 inline gLocal Local;
 
+
 struct gSocks5 {
 	/* @important: Leave empty if you don't use Socks5 Proxy */
     std::string IP = "";
@@ -30,12 +31,14 @@ struct gServer {
 };
 inline gServer Server;
 
+
 struct gClient {
     std::string VERSION = "5.42";
     std::string PROTOCOL = "225";
     std::string PLATFORM = "0,1,1"; /* @info: Don't change if you are on 'Windows' */
 };
 inline gClient Client;
+
 
 inline bool ShouldLogNetMessage(int type, int extra = 0) {
     /* @important: Customize the Logging System
@@ -70,3 +73,4 @@ inline bool ShouldLogNetMessage(int type, int extra = 0) {
     }
 
 }
+
