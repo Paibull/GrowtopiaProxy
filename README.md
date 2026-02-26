@@ -32,18 +32,23 @@ Server -> Proxy -> Client
     - [x] Debugging all the packets
     - [x] Modifying the real-time packets
     - [x] Creating and sending custom packets
- - [x] Advanced log system
-
---- 
+- [] Custom Socks5 Support
+- [x] Advanced log system
+- [x] Inventory system
 
 ---
 
 ## 🛠 Feautures
 
-- [x] Slash command /ping : Shows your current Client->Proxy and Proxy->Server pings
-- [x] Slash command /wd <amount> : Drops the amount of World Locks
-- [x] Slash command /dd <amount> : Drops the amount of Diamond Locks
-- [x] Slash command /bd <amount> : Drops the amount of Blue Gem Locks
+- [x] Slash command (/proxy) : Shows the proxy feautures.
+- [x] Slash command (/ping) : Shows your current Client and Server pings.
+- [x] Slash command (/inventory) : Prints your inventory to the cmd and game.
+- [x] Slash command (/wd amount) : Drops the amount of World Locks.
+- [x] Slash command (/dd amount) : Drops the amount of Diamond Locks.
+- [x] Slash command (/bd amount) : Drops the amount of Blue Gem Locks.
+
+- [x] Fast system : Removed delays in GamePackets.
+- [x] Roulette Verifier : Shows if the roulette shows the real log.
 
 --- 
 
