@@ -14,6 +14,7 @@ struct gLocal {
 inline gLocal Local;
 
 struct gSocks5 {
+	/* @important: Leave empty if you don't use Socks5 Proxy */
     std::string IP = "";
     uint16_t PORT = 0;
     std::string USERNAME = "";
@@ -67,4 +68,5 @@ inline bool ShouldLogNetMessage(int type, int extra = 0) {
         default:
         { return true; }
     }
+
 }
