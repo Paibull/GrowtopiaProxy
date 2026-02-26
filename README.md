@@ -39,7 +39,7 @@ Server -> Proxy -> Client
 
 ## 🛠 Feautures
 
-- [x] Slash command (/proxy) : Shows the proxy feautures.
+- [ ] Slash command (/proxy) : Shows the proxy feautures.
 - [x] Slash command (/ping) : Shows your current Client and Server pings.
 - [x] Slash command (/inventory) : Prints your inventory to the cmd and game.
 - [x] Slash command (/wd amount) : Drops the amount of World Locks.
@@ -73,10 +73,10 @@ cd vcpkg
 - Set Use Vcpkg to "Yes"  
 
 ## Building the Game
-1. Open the project in **Visual Studio Community**  
-2. Build the solution (`Ctrl + Shift + B`)  
-3. Run the executables from (`x64/Release`)
-4. `Source.exe`
+1. Open the project in **Visual Studio Community**
+2. Edit the (`Main/Config.hpp`) file
+3. Build the solution (`Ctrl + Shift + B`)  
+4. Run the `Source.exe` from (`x64/Release`)
 
 Note: If you want to use Debug, use 'Local Windows Debugger' while 'x64/Release' is selected.
 Note: It will ask permission to restart the visual studio with administrator mode, allow it!
