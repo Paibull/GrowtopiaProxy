@@ -32,7 +32,7 @@ Server -> Proxy -> Client
     - [x] Debugging all the packets
     - [x] Modifying the real-time packets
     - [x] Creating and sending custom packets
-- [] Custom Socks5 Support
+- [ ] Custom Socks5 Support
 - [x] Advanced log system
 - [x] Inventory system
 
