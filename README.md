@@ -25,7 +25,7 @@ Server -> Proxy -> Client
 ---
 
 ## 🎮 Roadmap  
-
+- [x] Change Settings from Config.hpp file
 - [x] Fetching the real Growtopia server credentials
 - [x] In-Built HTTP Server
 - [x] In-Built Network Server and Client:
