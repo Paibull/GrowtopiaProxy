@@ -47,7 +47,7 @@ Server -> Proxy -> Client
 - [x] Slash command (/dd amount) : Drops the amount of Diamond Locks.
 - [x] Slash command (/bd amount) : Drops the amount of Blue Gem Locks.
 
-- [x] Fast system : Removed delays in GamePackets.
+- [x] Fast system : Removes delay in GamePackets.
 - [x] Roulette Verifier : Shows if the roulette shows the real log.
 
 --- 
