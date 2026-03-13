@@ -35,6 +35,7 @@ Server -> Proxy -> Client
     - [x] Debugging all the packets
     - [x] Modifying the real-time packets
     - [x] Creating and sending custom packets
+- [x] Lua Script Support
 - [ ] Custom Socks5 Support
 - [x] Advanced log system
 
@@ -50,6 +51,7 @@ Server -> Proxy -> Client
 - [x] Slash command  (/country code) : Changes your country flag.
 
 ## Main Features:
+- [x] Slash command  (/lua) : Opens lua script settings menu.
 - [x] Slash command  (/farm) : Starts auto farming (legacy, anti-ban).
 - [x] Slash command  (/spam) : Opens Spam Settings menu.
 - [x] Slash command  (/wrench) : Activates/Deactivates the auto wrench (left click = pull, right click = kick).
