@@ -406,6 +406,74 @@ end
 
 ---
 
+### ⚠️ Common Mistakes
+
+#### 1. Forgetting `isRunning()` in loops
+```lua
+-- ❌ Wrong - /stop won't work
+while true do
+    OnTalkBubble(getNetID(), "Hi!")
+    sleep(1000)
+end
+
+-- ✅ Correct
+while isRunning() do
+    OnTalkBubble(getNetID(), "Hi!")
+    sleep(1000)
+end
+```
+
+#### 2. Forgetting `isRunning()` in for loops
+```lua
+-- ❌ Wrong - /stop won't work
+for i = 1, 100 do
+    drop(242, 1)
+    sleep(500)
+end
+
+-- ✅ Correct
+local i = 1
+while isRunning() and i <= 100 do
+    drop(242, 1)
+    sleep(500)
+    i = i + 1
+end
+```
+
+#### 3. Not checking inventory before drop/trash
+```lua
+-- ❌ Wrong - will error if item doesn't exist
+drop(242, 10)
+
+-- ✅ Correct
+if hasItem(242) and getItemCount(242) >= 10 then
+    drop(242, 10)
+end
+```
+
+#### 4. Using `sleep(0)` or no sleep in a while loop
+```lua
+-- ❌ Wrong - freezes the script thread instantly, burns CPU
+while isRunning() do
+    OnConsoleMessage("Spam!")
+end
+
+-- ✅ Correct - always sleep inside loops
+while isRunning() do
+    OnConsoleMessage("Hello!")
+    sleep(1000)
+end
+```
+
+#### 5. Running another script while one is already active
+```
+-- ❌ /execute script2.lua while script1.lua is running
+-- The proxy will ignore it and log a warning.
+-- Use /stop first, then /execute the new script.
+```
+
+---
+
 ## License
 This project is licensed under the **MIT License** – see the LICENSE file for details.  
 
