@@ -133,6 +133,222 @@ cd vcpkg
 Note: If you want to use Debug, use 'Local Windows Debugger' while 'x64/Release' is selected.
 Note: It will ask permission to restart the visual studio with administrator mode, allow it!
 
+---
+
+## 🌙 Lua Scripting
+
+Scripts are located in `Source/Lua/Scripts/`. Use `/lua` in-game to open the script hub.
+
+> ⚠️ **Important:** Always wrap loops with `isRunning()` so `/stop` works correctly.
+
+---
+
+### 📁 Script Structure
+
+```lua
+-- runs once at the start
+print("Script started!")
+
+-- main loop
+while isRunning() do
+    -- your code here
+    sleep(1000)
+end
+
+print("Script stopped.")
+```
+
+---
+
+### 🔧 Core Functions
+
+| Function | Description |
+|---|---|
+| `print(...)` | Logs a message to the proxy console |
+| `sleep(ms)` | Pauses the script (supports `/stop` mid-sleep) |
+| `isRunning()` | Returns `true` if the script is still running |
+
+---
+
+### 👤 Player Info
+
+| Function | Returns | Description |
+|---|---|---|
+| `getUserID()` | `int` | Player's user ID |
+| `getTankIDName()` | `string` | Player's tank ID name |
+| `getPlayerAge()` | `int` | Player's age |
+| `getNetID()` | `int` | Player's net ID |
+| `getCountry()` | `string` | Player's country code |
+| `getWorld()` | `string` | Current world name |
+| `getLastWorld()` | `string` | Last visited world |
+| `getSaveWorld()` | `string` | Saved world name |
+| `getPosition()` | `float, float` | Player's X and Y position |
+| `getKlv()` | `string` | KLV token |
+| `getMeta()` | `string` | Meta token |
+| `getRid()` | `string` | RID token |
+| `getMac()` | `string` | MAC address |
+| `getWk()` | `string` | WK token |
+
+---
+
+### 🎒 Inventory
+
+| Function | Returns | Description |
+|---|---|---|
+| `hasItem(id)` | `bool` | Returns `true` if the item exists in inventory |
+| `getItemCount(id)` | `int` | Returns the count of the item |
+
+```lua
+if hasItem(242) then
+    print("Dirt count: " .. getItemCount(242))
+end
+```
+
+---
+
+### 🌍 Player Actions
+
+| Function | Description |
+|---|---|
+| `warp(worldName)` | Warps to the given world |
+| `drop(id, count)` | Drops the specified item |
+| `trash(id, count)` | Trashes the specified item |
+
+```lua
+warp("START")
+drop(242, 10)
+trash(242, 5)
+```
+
+---
+
+### 📦 Variant Packets (Client-side)
+
+| Function | Description |
+|---|---|
+| `OnConsoleMessage(text)` | Sends a console message to the client |
+| `OnTalkBubble(netId, text)` | Shows a talk bubble above the player |
+| `OnTextOverlay(text)` | Shows an overlay text on screen |
+| `OnDialogRequest(text)` | Opens a dialog box |
+| `OnSetFreezeState(seconds)` | Freezes the player |
+
+```lua
+OnConsoleMessage("Hello from Lua!")
+OnTalkBubble(getNetID(), "Hey!")
+OnTextOverlay("Overlay text")
+OnSetFreezeState(3)
+```
+
+---
+
+### 📡 Raw Packet Sending
+
+```lua
+-- sendPacket(target, type, text)
+-- target: "server" or "client"
+-- type:   2 = NET_MESSAGE_GENERIC_TEXT, 3 = NET_MESSAGE_GAME_MESSAGE
+
+sendPacket("server", 2, "action|join_request\nname|START\ninvitedWorld|0\n")
+sendPacket("client", 2, "action|log\nmsg|`oHello!\n")
+```
+
+---
+
+### 🕹️ PlayerMoving Packets
+
+```lua
+-- sendPlayerMoving(table)
+sendPlayerMoving({
+    packetType   = 10,        -- PACKET_ITEM_ACTIVATE_REQUEST
+    plantingTree = 242,       -- item ID
+    target       = "server"   -- "server" or "client"
+})
+
+-- punch a tile
+sendPlayerMoving({
+    packetType   = 3,         -- PACKET_TILE_CHANGE_REQUEST
+    plantingTree = 32,
+    punch        = {18, 8},   -- {punchX, punchY}
+    position     = {576.0, 256.0},
+    target       = "server"
+})
+```
+
+#### Available fields for `sendPlayerMoving`:
+
+| Field | Type | Description |
+|---|---|---|
+| `packetType` | `int` | Packet type (see PACKET_* constants) |
+| `netID` | `int` | Net ID |
+| `characterState` | `int` | Character state flags |
+| `plantingTree` | `int` | Item ID to use/place |
+| `punch` | `{int, int}` | Punch tile coordinates `{x, y}` |
+| `position` | `{float, float}` | Player position `{x, y}` |
+| `speed` | `{float, float}` | Player speed `{xs, ys}` |
+| `target` | `string` | `"server"` (default) or `"client"` |
+
+---
+
+### 📋 Packet Type Constants
+
+| Constant | Value |
+|---|---|
+| `PACKET_STATE` | 0 |
+| `PACKET_TILE_CHANGE_REQUEST` | 3 |
+| `PACKET_TILE_ACTIVATE_REQUEST` | 7 |
+| `PACKET_SEND_INVENTORY_STATE` | 9 |
+| `PACKET_ITEM_ACTIVATE_REQUEST` | 10 |
+| `PACKET_MODIFY_ITEM_INVENTORY` | 13 |
+
+---
+
+### 📝 Example Scripts
+
+#### Auto TalkBubble (10 times, 3s interval)
+```lua
+local i = 1
+while isRunning() and i <= 10 do
+    OnTalkBubble(getNetID(), "Message " .. i)
+    print("Sent bubble: " .. i)
+    sleep(3000)
+    i = i + 1
+end
+```
+
+#### Drop item if available
+```lua
+local itemID = 242
+local count  = 3
+
+if hasItem(itemID) then
+    local current = getItemCount(itemID)
+    print("Found item " .. itemID .. ", count: " .. current)
+    if current >= count then
+        drop(itemID, count)
+        print("Dropped " .. count .. "x item " .. itemID)
+    else
+        print("Not enough! Have: " .. current)
+    end
+else
+    print("Item " .. itemID .. " not in inventory")
+end
+```
+
+#### World hopper
+```lua
+local worlds = {"START", "PARKOUR", "BUYITEM"}
+local i = 1
+
+while isRunning() do
+    warp(worlds[i])
+    print("Warped to: " .. worlds[i])
+    sleep(5000)
+    i = i % #worlds + 1
+end
+```
+
+---
+
 ## License
 This project is licensed under the **MIT License** – see the LICENSE file for details.  
 
