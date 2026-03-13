@@ -97,6 +97,7 @@ Server -> Proxy -> Client
 ![Information & Shortcuts](Docs/Proxy2.png)
 ![Drop Feautures & Anti Lag](Docs/Proxy3.png)
 
+![Drop Feautures & Anti Lag](Docs/LuaMenu.png)
 ![Drop Feautures & Anti Lag](Docs/UiMenu.png)
 ![Drop Feautures & Anti Lag](Docs/SpamMenu.png)
 
