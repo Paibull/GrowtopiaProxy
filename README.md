@@ -85,6 +85,17 @@ Server -> Proxy -> Client
 
 --- 
 
+## 📸 Screenshots
+
+![Info & Customize & Main Feautures](Docs/Proxy1.png)
+![Information & Shortcuts](Docs/Proxy2.png)
+![Drop Feautures & Anti Lag](Docs/Proxy3.png)
+
+![Drop Feautures & Anti Lag](Docs/UiMenu.png)
+![Drop Feautures & Anti Lag](Docs/SpamMenu.png)
+
+---
+
 ## Getting Started
 
 ### 1. Install Git
