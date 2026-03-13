@@ -81,6 +81,7 @@ Server -> Proxy -> Client
 ## Extra
 - [x] Fast system : Removes delay in GamePackets.
 - [x] Roulette Verifier : Shows if the roulette shows the real log.
+- [x] Custom Design : Changes all of the dialog colors of the game.
 
 --- 
 
