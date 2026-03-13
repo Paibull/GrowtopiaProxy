@@ -52,6 +52,7 @@ Server -> Proxy -> Client
 
 ## Main Features:
 - [x] Slash command  (/lua) : Opens lua script settings menu.
+- [x] Slash command  (/stoplua) : Stops the lua script.
 - [x] Slash command  (/farm) : Starts auto farming (legacy, anti-ban).
 - [x] Slash command  (/spam) : Opens Spam Settings menu.
 - [x] Slash command  (/wrench) : Activates/Deactivates the auto wrench (left click = pull, right click = kick).
