@@ -76,7 +76,7 @@ Server -> Proxy -> Client
 - [x] Slash command   (/relog) : Leaves and joins to the same world.
 
 ## Anti Lag:
-- [x] Slash command  (/hideclothee) : Hides the clothes of everyone and removes the effects.
+- [x] Slash command  (/hideclothes) : Hides the clothes of everyone and removes the effects.
 
 ## Extra
 - [x] Fast system : Removes delay in GamePackets.
