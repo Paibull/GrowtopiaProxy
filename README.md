@@ -4,6 +4,9 @@ Growtopia Bridge Proxy is a powerful tool that sits between the Growtopia client
 ---
 
 ## 🛠 Features  
+- **No Shadow Ban At All!**
+- **No Account Ban At All (LEGACY PROXY)!** 
+
 - **Bidirectional traffic handling:**
 Client -> Proxy -> Server
 and
