@@ -60,12 +60,20 @@ Server -> Proxy -> Client
 - [x] Slash command  (/drop) : Activates/Deactivates the Fast-Drop.
 - [x] Slash command  (/trash) : Activates/Deactivates the Fast-Trash.
 - [x] Slash command  (/pullall) : Pulls everyone in the world.
+- [x] Slash command  (/kickall) : Kicks everyone in the world.
+- [x] Slash command  (/banall) : Bans everyone in the world.
+
 ## Drop Feautures:
 - [x] Slash command  (/cd amount) : Drops the amount of locks.
 - [x] Slash command  (/wd amount) : Drops the amount of World Locks.
 - [x] Slash command  (/dd amount) : Drops the amount of Diamond Locks.
 - [x] Slash command  (/bd amount) : Drops the amount of Blue Gem Locks.
 - [x] Slash command  (/daw) : Drops your all locks.
+- [x] Slash command  (/warp name) : Warps to the chozen world.
+- [x] Slash command   (/back) : Warps to the last world.
+- [x] Slash command   (/setsave name) : Set the save world.
+- [x] Slash command   (/save) : Warps to the save world.
+- [x] Slash command   (/relog) : Leaves and joins to the same world.
 
 ## Anti Lag:
 - [x] Slash command  (/hideclothee) : Hides the clothes of everyone and removes the effects.
