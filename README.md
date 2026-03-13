@@ -114,6 +114,8 @@ git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
 .bootstrap-vcpkg.bat
 .vcpkg install openssl:x64-windows
+.vcpkg install lua:x64-windows
+.vcpkg install sol2:x64-windows
 .vcpkg integrate install
 ```
 
