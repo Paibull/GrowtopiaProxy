@@ -37,15 +37,40 @@ Server -> Proxy -> Client
 
 ---
 
-## 🛠 Feautures
+## Info:
+- [x] Slash command  (/proxy) : Shows the proxy feautures.
+- [x] Slash command  (/news) : Shows the real Growtopia news.
+- [x] Slash command  (/ping) : Shows your current Client and Server pings.
 
-- [ ] Slash command (/proxy) : Shows the proxy feautures.
-- [x] Slash command (/ping) : Shows your current Client and Server pings.
-- [x] Slash command (/inventory) : Prints your inventory to the cmd and game.
-- [x] Slash command (/wd amount) : Drops the amount of World Locks.
-- [x] Slash command (/dd amount) : Drops the amount of Diamond Locks.
-- [x] Slash command (/bd amount) : Drops the amount of Blue Gem Locks.
+## Customize:
+- [x] Slash command  (/ui) : Opens UI customizer menu.
+- [x] Slash command  (/country code) : Changes your country flag.
 
+## Main Features:
+- [x] Slash command  (/farm) : Starts auto farming (legacy, anti-ban).
+- [x] Slash command  (/spam) : Opens Spam Settings menu.
+- [x] Slash command  (/wrench) : Activates/Deactivates the auto wrench (left click = pull, right click = kick).
+
+## Information:
+- [x] Slash command  (/balance) : Shows your current lock balance.
+- [x] Slash command  (/account) : Opens Account Informations menu.
+- [x] Slash command  (/inventory) : Opens Invrntory menu.
+
+## Shortcuts:
+- [x] Slash command  (/drop) : Activates/Deactivates the Fast-Drop.
+- [x] Slash command  (/trash) : Activates/Deactivates the Fast-Trash.
+- [x] Slash command  (/pullall) : Pulls everyone in the world.
+## Drop Feautures:
+- [x] Slash command  (/cd amount) : Drops the amount of locks.
+- [x] Slash command  (/wd amount) : Drops the amount of World Locks.
+- [x] Slash command  (/dd amount) : Drops the amount of Diamond Locks.
+- [x] Slash command  (/bd amount) : Drops the amount of Blue Gem Locks.
+- [x] Slash command  (/daw) : Drops your all locks.
+
+## Anti Lag:
+- [x] Slash command  (/hideclothee) : Hides the clothes of everyone and removes the effects.
+
+## Extra
 - [x] Fast system : Removes delay in GamePackets.
 - [x] Roulette Verifier : Shows if the roulette shows the real log.
 
