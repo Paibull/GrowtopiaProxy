@@ -54,7 +54,7 @@ Server -> Proxy -> Client
 ## Information:
 - [x] Slash command  (/balance) : Shows your current lock balance.
 - [x] Slash command  (/account) : Opens Account Informations menu.
-- [x] Slash command  (/inventory) : Opens Invrntory menu.
+- [x] Slash command  (/inventory) : Opens Inventory menu.
 
 ## Shortcuts:
 - [x] Slash command  (/drop) : Activates/Deactivates the Fast-Drop.
