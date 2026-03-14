@@ -229,7 +229,7 @@ trash(242, 5)
 | Function | Description |
 |---|---|
 | `OnConsoleMessage(text)` | Sends a console message to the client |
-| `OnTalkBubble(netId, text)` | Shows a talk bubble above the player |
+| `OnTalkBubble(text)` | Shows a talk bubble above the player |
 | `OnTextOverlay(text)` | Shows an overlay text on screen |
 | `OnDialogRequest(text)` | Opens a dialog box |
 | `OnSetFreezeState(seconds)` | Freezes the player |
