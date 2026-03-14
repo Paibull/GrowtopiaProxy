@@ -97,7 +97,7 @@ void LuaManager::RegisterFunctions() {
     m_lua.set_function("OnTalkBubble", [this](uint32_t netId, const std::string& text) {
         if (!m_client) { LOG_ERROR("Peers not set!"); return; }
         GamePacket<OnTalkBubble> p;
-        p.netId = netId;
+        p.netId = Player.netID;
         p.text = text;
         SendGamePacket(m_client, p);
     });
