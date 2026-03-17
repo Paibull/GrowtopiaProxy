@@ -73,6 +73,7 @@ Server -> Proxy -> Client
 - [x] Slash command  (/setsave name) : Set the save world.
 - [x] Slash command  (/save) : Warps to the save world.
 - [x] Slash command  (/relog) : Leaves and joins to the same world.
+- [x] Slash command  (/change) : Activates/Deactivates the Fast BGL Change.
 
 ## Drop Feautures:
 - [x] Slash command  (/cd amount) : Drops the amount of locks.
