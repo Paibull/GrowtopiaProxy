@@ -140,7 +140,7 @@ Note: It will ask permission to restart the visual studio with administrator mod
 
 ## 🌙 Lua Scripting
 
-Scripts are located in `Source/Lua/Scripts/`. Use `/lua` in-game to open the script hub.
+Scripts are located in `x64/Release/Scripts/`. Use `/lua` in-game to open the script hub.
 
 > ⚠️ **Important:** Always wrap loops with `isRunning()` so `/stop` works correctly.
 
