@@ -99,6 +99,18 @@ static constexpr uint8_t ITEMS_DAT_MAX_VERSION = 24;
    of them safe would be a rewrite, and this makes the whole class harmless. */
 static constexpr std::size_t ITEMS_DAT_PADDING = 64 * 1024;
 
+/* How far to look for a lost id anchor. Newer versions have appended a byte or
+   two at a time; a window this size covers that generously while still being far
+   too small to "find" an anchor by coincidence in a desynced stream. */
+static constexpr uint32_t ITEMS_DAT_MAX_SKEW = 32;
+
+static uint32_t readU32(const std::vector<uint8_t>& d, std::size_t at) {
+    return static_cast<uint32_t>(d[at])
+         | (static_cast<uint32_t>(d[at + 1]) << 8)
+         | (static_cast<uint32_t>(d[at + 2]) << 16)
+         | (static_cast<uint32_t>(d[at + 3]) << 24);
+}
+
 std::string InjectItems() {
     /* Whatever happens below, never come back: enter_game fires on every world
        change and a failing parse would repeat forever. */
@@ -134,23 +146,62 @@ std::string InjectItems() {
     uint16_t count{};
     shift_pos(im_data, pos, count); pos += 2; // @note downside count to 2 bit
 
+    /* --- adapting to a newer items.dat ----------------------------------
+       Item records are stored in id order, and each one begins with its id as
+       a 32-bit little-endian value. That is a checkable anchor: after reading
+       record i, the next four bytes must be i+1.
+
+       So a version that only APPENDS fields -- which is what every version
+       here has done -- can be handled without knowing what it added: parse
+       with the newest layout we know, see how far the anchor has moved, and
+       carry that as trailing padding. The file teaches us its own layout.
+
+       What this deliberately does NOT do is guess at a field inserted in the
+       MIDDLE of a record, or one whose size changed. Those move the anchor
+       unpredictably, the resync fails, and we stop -- which is the honest
+       outcome, because a mis-parsed table of item names is worse than none. */
+    uint32_t    extraPerRecord = 0;
+    std::string note;   /* @note: this file has no logger; the caller logs what we return. */
+
     if (version > ITEMS_DAT_MAX_VERSION) {
-        items.clear();
-        return "items.dat is v" + std::to_string(version) + " but this parser only knows up to v"
-             + std::to_string(ITEMS_DAT_MAX_VERSION) + ". Refusing to guess the layout -- "
-               "item names are unavailable, everything else still works.";
+        note = " [v" + std::to_string(version) + " is newer than the v"
+             + std::to_string(ITEMS_DAT_MAX_VERSION) + " layout this parser knows]";
     }
     static constexpr std::string_view token{ "PBG892FXX982ABC*" };
     for (uint16_t i = 0; i < count; ++i) {
         /* One check per item is enough to catch a desync before it compounds:
            a wrong length field pushes pos past the content, and the next
            iteration stops here instead of reading further nonsense. */
-        if (pos >= dataEnd) {
+        if (pos + 4 > dataEnd) {
             const std::string got = std::to_string(items.size());
             items.clear();
-            return "items.dat parse desynced after " + got + " of " + std::to_string(count)
+            return "items.dat parse ran off the end after " + got + " of " + std::to_string(count)
                  + " items (v" + std::to_string(version) + "). Item names are unavailable; "
                    "nothing else is affected.";
+        }
+
+        /* The anchor: this record must start with its own id. */
+        if (readU32(im_data, pos) != i) {
+            /* Scan forward for where the id actually landed. A short window on
+               purpose: a large jump means we are lost, not merely behind. */
+            bool resynced = false;
+            for (uint32_t skip = 1; skip <= ITEMS_DAT_MAX_SKEW; ++skip) {
+                if (pos + skip + 4 > dataEnd) break;
+                if (readU32(im_data, pos + skip) == i) {
+                    extraPerRecord += skip;
+                    pos += skip;
+                    resynced = true;
+                    break;
+                }
+            }
+            if (!resynced) {
+                const std::string got = std::to_string(items.size());
+                items.clear();
+                return "items.dat v" + std::to_string(version) + " changed in a way this parser "
+                       "cannot follow (lost the id anchor at item " + got + " of "
+                     + std::to_string(count) + "). A field was probably inserted mid-record "
+                       "rather than appended. Item names are unavailable; nothing else is affected.";
+            }
         }
 
         Items im{};
@@ -277,10 +328,22 @@ std::string InjectItems() {
             shift_pos(im_data, pos, im.splice[0]);
             shift_pos(im_data, pos, im.splice[1]);
         }
-        if (version == 24) pos += sizeof(uint8_t); // @date December 2025
+        /* @fix: this was `version == 24`. Every other gate in this parser is
+           `>=`, because each version ADDS a field and keeps the earlier ones.
+           With `==`, a v25 file skips this byte and every record after the
+           first is read at the wrong offset. */
+        if (version >= 24) pos += sizeof(uint8_t); // @date December 2025
+
+        /* Whatever a newer version appended beyond what we know, learned from
+           the file itself rather than hardcoded. See the resync below. */
+        pos += extraPerRecord;
 
         items.emplace_back(im);
     }
     ALREADY_INJECTED = true;
-    return "Injected " + std::to_string(items.size()) + " items from the items.dat v" + std::to_string(version);
+    return "Injected " + std::to_string(items.size()) + " items from the items.dat v"
+         + std::to_string(version)
+         + (extraPerRecord ? " (+" + std::to_string(extraPerRecord)
+                             + " byte(s)/record learned from the file itself)" : "")
+         + note;
 }
