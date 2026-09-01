@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <system_error>   /* std::error_code, for the non-throwing file_size */
 
 
 std::vector<Items> items;
@@ -88,8 +89,34 @@ std::string getGrowtopiaItemsPath() {
     return {};
 }
 
+/* @important: the highest items.dat layout this parser knows. Everything below
+   is written against it; a newer file has fields we cannot place, and guessing
+   would produce a silently wrong item table rather than an obvious failure. */
+static constexpr uint8_t ITEMS_DAT_MAX_VERSION = 24;
+
+/* Slack appended after the file so that a desynced read cannot leave the
+   allocation. The parser does 17 unchecked raw-pointer reads; making every one
+   of them safe would be a rewrite, and this makes the whole class harmless. */
+static constexpr std::size_t ITEMS_DAT_PADDING = 64 * 1024;
+
 std::string InjectItems() {
-    auto size = std::filesystem::file_size(getGrowtopiaItemsPath());
+    /* Whatever happens below, never come back: enter_game fires on every world
+       change and a failing parse would repeat forever. */
+    ALREADY_INJECTED = true;
+
+    const std::string path = getGrowtopiaItemsPath();
+    if (path.empty())
+        return "items.dat: LOCALAPPDATA is not set -- item names unavailable.";
+
+    /* @fix: the throwing overload. A missing items.dat raised
+       std::filesystem::filesystem_error with nothing anywhere to catch it, so
+       the proxy died on enter_game instead of reporting a missing file. */
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(path, ec);
+    if (ec || size == 0) {
+        return "items.dat not readable at '" + path + "' (" + ec.message() + "). "
+               "Item names are unavailable; everything else still works.";
+    }
 
     im_data = compress_state(::state{
         .type = 0x10,
@@ -97,16 +124,35 @@ std::string InjectItems() {
         .size = static_cast<int>(size)
     });
 
-    im_data.resize(im_data.size() + size); // @note resize to fit binary data
-    std::ifstream(getGrowtopiaItemsPath(), std::ios::binary).read(reinterpret_cast<char*>(&im_data[sizeof(::state)]), size); // @note the binary data···
+    const std::size_t dataEnd = im_data.size() + size;   /* end of real content */
+    im_data.resize(dataEnd + ITEMS_DAT_PADDING);          /* + slack, zeroed */
+    std::ifstream(path, std::ios::binary).read(reinterpret_cast<char*>(&im_data[sizeof(::state)]), size); // @note the binary data···
 
     uint32_t pos{ sizeof(::state) };
     uint8_t version{};
     shift_pos(im_data, pos, version); pos += 1; // @note downsize 'version' to 1 bit
     uint16_t count{};
     shift_pos(im_data, pos, count); pos += 2; // @note downside count to 2 bit
+
+    if (version > ITEMS_DAT_MAX_VERSION) {
+        items.clear();
+        return "items.dat is v" + std::to_string(version) + " but this parser only knows up to v"
+             + std::to_string(ITEMS_DAT_MAX_VERSION) + ". Refusing to guess the layout -- "
+               "item names are unavailable, everything else still works.";
+    }
     static constexpr std::string_view token{ "PBG892FXX982ABC*" };
     for (uint16_t i = 0; i < count; ++i) {
+        /* One check per item is enough to catch a desync before it compounds:
+           a wrong length field pushes pos past the content, and the next
+           iteration stops here instead of reading further nonsense. */
+        if (pos >= dataEnd) {
+            const std::string got = std::to_string(items.size());
+            items.clear();
+            return "items.dat parse desynced after " + got + " of " + std::to_string(count)
+                 + " items (v" + std::to_string(version) + "). Item names are unavailable; "
+                   "nothing else is affected.";
+        }
+
         Items im{};
 
         shift_pos(im_data, pos, im.id); pos += 2; // @note downside im.id to 2 bit (short)

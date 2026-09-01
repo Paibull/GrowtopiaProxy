@@ -126,7 +126,24 @@ bool HandlePacket(int type, ENetPacket* packet, ENetPeer* to) {
                 std::string action = Packet::ExtractValue<std::string>(text, "action", "");
 
                 if (Packet::Contains(text, "action|enter_game") && !Packet::Contains(text, "action|enter_game\ninvitedWorld|")) {
-                    if (!ALREADY_INJECTED) LOG_INFO("{}", InjectItems());
+                    /* @important: never let this kill the proxy. It only
+                       builds a local item-name table -- im_data never leaves
+                       this process -- so a failure costs item names and
+                       nothing else. It used to be an uncaught throw on
+                       enter_game. */
+                    if (!ALREADY_INJECTED) {
+                        try { LOG_INFO("{}", InjectItems()); }
+                        catch (const std::exception& e) {
+                            ALREADY_INJECTED = true;
+                            LOG_ERROR("items.dat injection failed: {}", e.what());
+                            LOG_ERROR("Continuing without item names.");
+                        }
+                        catch (...) {
+                            ALREADY_INJECTED = true;
+                            LOG_ERROR("items.dat injection failed with an unknown error.");
+                            LOG_ERROR("Continuing without item names.");
+                        }
+                    }
                     return true;
                 }
                 else if (action == "input") {
