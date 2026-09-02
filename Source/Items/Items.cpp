@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <system_error>   /* std::error_code, for the non-throwing file_size */
 
 
 std::vector<Items> items;
@@ -88,8 +89,46 @@ std::string getGrowtopiaItemsPath() {
     return {};
 }
 
+/* @important: the highest items.dat layout this parser knows. Everything below
+   is written against it; a newer file has fields we cannot place, and guessing
+   would produce a silently wrong item table rather than an obvious failure. */
+static constexpr uint8_t ITEMS_DAT_MAX_VERSION = 24;
+
+/* Slack appended after the file so that a desynced read cannot leave the
+   allocation. The parser does 17 unchecked raw-pointer reads; making every one
+   of them safe would be a rewrite, and this makes the whole class harmless. */
+static constexpr std::size_t ITEMS_DAT_PADDING = 64 * 1024;
+
+/* How far to look for a lost id anchor. Newer versions have appended a byte or
+   two at a time; a window this size covers that generously while still being far
+   too small to "find" an anchor by coincidence in a desynced stream. */
+static constexpr uint32_t ITEMS_DAT_MAX_SKEW = 32;
+
+static uint32_t readU32(const std::vector<uint8_t>& d, std::size_t at) {
+    return static_cast<uint32_t>(d[at])
+         | (static_cast<uint32_t>(d[at + 1]) << 8)
+         | (static_cast<uint32_t>(d[at + 2]) << 16)
+         | (static_cast<uint32_t>(d[at + 3]) << 24);
+}
+
 std::string InjectItems() {
-    auto size = std::filesystem::file_size(getGrowtopiaItemsPath());
+    /* Whatever happens below, never come back: enter_game fires on every world
+       change and a failing parse would repeat forever. */
+    ALREADY_INJECTED = true;
+
+    const std::string path = getGrowtopiaItemsPath();
+    if (path.empty())
+        return "items.dat: LOCALAPPDATA is not set -- item names unavailable.";
+
+    /* @fix: the throwing overload. A missing items.dat raised
+       std::filesystem::filesystem_error with nothing anywhere to catch it, so
+       the proxy died on enter_game instead of reporting a missing file. */
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(path, ec);
+    if (ec || size == 0) {
+        return "items.dat not readable at '" + path + "' (" + ec.message() + "). "
+               "Item names are unavailable; everything else still works.";
+    }
 
     im_data = compress_state(::state{
         .type = 0x10,
@@ -97,16 +136,74 @@ std::string InjectItems() {
         .size = static_cast<int>(size)
     });
 
-    im_data.resize(im_data.size() + size); // @note resize to fit binary data
-    std::ifstream(getGrowtopiaItemsPath(), std::ios::binary).read(reinterpret_cast<char*>(&im_data[sizeof(::state)]), size); // @note the binary data···
+    const std::size_t dataEnd = im_data.size() + size;   /* end of real content */
+    im_data.resize(dataEnd + ITEMS_DAT_PADDING);          /* + slack, zeroed */
+    std::ifstream(path, std::ios::binary).read(reinterpret_cast<char*>(&im_data[sizeof(::state)]), size); // @note the binary data···
 
     uint32_t pos{ sizeof(::state) };
     uint8_t version{};
     shift_pos(im_data, pos, version); pos += 1; // @note downsize 'version' to 1 bit
     uint16_t count{};
     shift_pos(im_data, pos, count); pos += 2; // @note downside count to 2 bit
+
+    /* --- adapting to a newer items.dat ----------------------------------
+       Item records are stored in id order, and each one begins with its id as
+       a 32-bit little-endian value. That is a checkable anchor: after reading
+       record i, the next four bytes must be i+1.
+
+       So a version that only APPENDS fields -- which is what every version
+       here has done -- can be handled without knowing what it added: parse
+       with the newest layout we know, see how far the anchor has moved, and
+       carry that as trailing padding. The file teaches us its own layout.
+
+       What this deliberately does NOT do is guess at a field inserted in the
+       MIDDLE of a record, or one whose size changed. Those move the anchor
+       unpredictably, the resync fails, and we stop -- which is the honest
+       outcome, because a mis-parsed table of item names is worse than none. */
+    uint32_t    extraPerRecord = 0;
+    std::string note;   /* @note: this file has no logger; the caller logs what we return. */
+
+    if (version > ITEMS_DAT_MAX_VERSION) {
+        note = " [v" + std::to_string(version) + " is newer than the v"
+             + std::to_string(ITEMS_DAT_MAX_VERSION) + " layout this parser knows]";
+    }
     static constexpr std::string_view token{ "PBG892FXX982ABC*" };
     for (uint16_t i = 0; i < count; ++i) {
+        /* One check per item is enough to catch a desync before it compounds:
+           a wrong length field pushes pos past the content, and the next
+           iteration stops here instead of reading further nonsense. */
+        if (pos + 4 > dataEnd) {
+            const std::string got = std::to_string(items.size());
+            items.clear();
+            return "items.dat parse ran off the end after " + got + " of " + std::to_string(count)
+                 + " items (v" + std::to_string(version) + "). Item names are unavailable; "
+                   "nothing else is affected.";
+        }
+
+        /* The anchor: this record must start with its own id. */
+        if (readU32(im_data, pos) != i) {
+            /* Scan forward for where the id actually landed. A short window on
+               purpose: a large jump means we are lost, not merely behind. */
+            bool resynced = false;
+            for (uint32_t skip = 1; skip <= ITEMS_DAT_MAX_SKEW; ++skip) {
+                if (pos + skip + 4 > dataEnd) break;
+                if (readU32(im_data, pos + skip) == i) {
+                    extraPerRecord += skip;
+                    pos += skip;
+                    resynced = true;
+                    break;
+                }
+            }
+            if (!resynced) {
+                const std::string got = std::to_string(items.size());
+                items.clear();
+                return "items.dat v" + std::to_string(version) + " changed in a way this parser "
+                       "cannot follow (lost the id anchor at item " + got + " of "
+                     + std::to_string(count) + "). A field was probably inserted mid-record "
+                       "rather than appended. Item names are unavailable; nothing else is affected.";
+            }
+        }
+
         Items im{};
 
         shift_pos(im_data, pos, im.id); pos += 2; // @note downside im.id to 2 bit (short)
@@ -231,10 +328,22 @@ std::string InjectItems() {
             shift_pos(im_data, pos, im.splice[0]);
             shift_pos(im_data, pos, im.splice[1]);
         }
-        if (version == 24) pos += sizeof(uint8_t); // @date December 2025
+        /* @fix: this was `version == 24`. Every other gate in this parser is
+           `>=`, because each version ADDS a field and keeps the earlier ones.
+           With `==`, a v25 file skips this byte and every record after the
+           first is read at the wrong offset. */
+        if (version >= 24) pos += sizeof(uint8_t); // @date December 2025
+
+        /* Whatever a newer version appended beyond what we know, learned from
+           the file itself rather than hardcoded. See the resync below. */
+        pos += extraPerRecord;
 
         items.emplace_back(im);
     }
     ALREADY_INJECTED = true;
-    return "Injected " + std::to_string(items.size()) + " items from the items.dat v" + std::to_string(version);
+    return "Injected " + std::to_string(items.size()) + " items from the items.dat v"
+         + std::to_string(version)
+         + (extraPerRecord ? " (+" + std::to_string(extraPerRecord)
+                             + " byte(s)/record learned from the file itself)" : "")
+         + note;
 }

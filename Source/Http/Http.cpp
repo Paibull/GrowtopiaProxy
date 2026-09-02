@@ -61,8 +61,18 @@ bool HttpManager::Fetcher() {
     Server.UDP = std::stoi(port);
 
     {
-        if (enet_address_set_host_ip(&Network.GetServerAddress(), Server.IP.c_str()) < 0) {
-            return "Invalid Server IP for HTTP Parser!";
+        /* This returned a string literal from a function declared `bool`. The
+           literal decays to a non-null `const char*`, which converts to `true`
+           -- so an unusable server address was reported to the caller as a
+           successful fetch, and the failure only surfaced later as a connection
+           that never completes.
+
+           Also `!= 0` rather than `< 0`: enet_address_set_host_ip is documented
+           to return 0 on success, and does not promise a negative value on
+           failure. Network.cpp already compares it that way. */
+        if (enet_address_set_host_ip(&Network.GetServerAddress(), Server.IP.c_str()) != 0) {
+            LOG_ERROR("Invalid server IP from server_data.php: {}", Server.IP);
+            return false;
         }
         Network.GetServerAddress().port = Server.UDP;
     }
