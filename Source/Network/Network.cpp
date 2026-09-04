@@ -167,16 +167,18 @@ void NetworkManager::Injector() {
                         if (!PROXY_EVENT.packet) break;
 
                         ENetPeer* server_peer = nullptr;
-                        {
-                            std::lock_guard<std::recursive_mutex> lock(peer_mutex);
-                            auto it = client_to_server.find(client_peer);
-                            if (it != client_to_server.end()) server_peer = it->second;
-                        }
+                        auto it = client_to_server.find(client_peer);
+                        if (it != client_to_server.end()) server_peer = it->second;
 
-                        if (server_peer) {
-                            if (HandlePacket(CLIENT_PROXY_SERVER, PROXY_EVENT.packet, server_peer)) enet_peer_send(server_peer, 0, PROXY_EVENT.packet);
-                            else enet_packet_destroy(PROXY_EVENT.packet);
-                        }
+                        /* enet_host_service hands us ownership of the packet.
+                           It only passes to enet_peer_send on success, so every
+                           other path -- no route, handler swallowed it, send
+                           refused -- has to destroy it or it leaks for the life
+                           of the process. */
+                        bool forwarded = false;
+                        if (server_peer && HandlePacket(CLIENT_PROXY_SERVER, PROXY_EVENT.packet, server_peer))
+                            forwarded = enet_peer_send(server_peer, 0, PROXY_EVENT.packet) == 0;
+                        if (!forwarded) enet_packet_destroy(PROXY_EVENT.packet);
 
                         break;
                     }
@@ -198,7 +200,6 @@ void NetworkManager::Injector() {
                         break;
                     }
                     case ENET_EVENT_TYPE_DISCONNECT: {
-                        std::lock_guard<std::recursive_mutex> lock(peer_mutex);
                         auto it = server_to_client.find(server_peer);
                         if (it != server_to_client.end()) {
                             ENetPeer* client_peer = it->second;
@@ -215,16 +216,13 @@ void NetworkManager::Injector() {
                         if (!SERVER_EVENT.packet) break;
 
                         ENetPeer* client_peer = nullptr;
-                        {
-                            std::lock_guard<std::recursive_mutex> lock(peer_mutex);
-                            auto it = server_to_client.find(server_peer);
-                            if (it != server_to_client.end()) client_peer = it->second;
-                        }
+                        auto it = server_to_client.find(server_peer);
+                        if (it != server_to_client.end()) client_peer = it->second;
 
-                        if (client_peer) {
-                            if (HandlePacket(SERVER_PROXY_CLIENT, SERVER_EVENT.packet, client_peer)) enet_peer_send(client_peer, 0, SERVER_EVENT.packet);
-                            else enet_packet_destroy(SERVER_EVENT.packet);
-                        }
+                        bool forwarded = false;
+                        if (client_peer && HandlePacket(SERVER_PROXY_CLIENT, SERVER_EVENT.packet, client_peer))
+                            forwarded = enet_peer_send(client_peer, 0, SERVER_EVENT.packet) == 0;
+                        if (!forwarded) enet_packet_destroy(SERVER_EVENT.packet);
 
                         break;
                     }
