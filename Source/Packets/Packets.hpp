@@ -345,17 +345,30 @@ struct ModifyItemInventoryPacket {
 
 
 inline const BYTE* get_packet_payload(const ENetPacket* packet, size_t& outSize) {
-    if (!packet || packet->dataLength < 56) return nullptr;
+    /* FLAG_BYTE and EXTRA_SIZE_DWORD are struct-relative, so reading them off
+       packet->data skipped the 4-byte header and landed 4 bytes early -- the
+       flag test hit the item field and the length came from the punch
+       coordinates. A wrong "has extra data" hit then added a garbage length to
+       outSize, and since PlayerMovingView bounds-checks against outSize alone,
+       every subsequent read could run past the end of the ENet buffer.
+
+       The header is also part of the minimum: a PlayerMoving packet is 4 + 56
+       bytes before any extended data, not 56. */
+    constexpr size_t MIN_SIZE = PMOffset::HEADER + PMOffset::STRUCT_SIZE;
+
+    if (!packet || packet->dataLength < MIN_SIZE) return nullptr;
     const BYTE* data = packet->data;
-    size_t packetSize = packet->dataLength;
-    outSize = packetSize - 4;
-    const BYTE* payload = data + 4;
-    if ((data[PMOffset::FLAG_BYTE] & 8) != 0) {
-        int extraSize = 0;
-        std::memcpy(&extraSize, data + PMOffset::EXTRA_SIZE_DWORD, sizeof(int));
+    const size_t packetSize = packet->dataLength;
+    const BYTE* payload = data + PMOffset::HEADER;
+
+    outSize = PMOffset::STRUCT_SIZE;
+
+    if ((payload[PMOffset::FLAG_BYTE] & 8) != 0) {
+        int32_t extraSize = 0;
+        std::memcpy(&extraSize, payload + PMOffset::EXTRA_SIZE_DWORD, sizeof(extraSize));
         if (extraSize < 0) return nullptr;
-        if (packetSize < 60u + static_cast<size_t>(extraSize)) return nullptr;
-        outSize += extraSize;
+        if (packetSize - MIN_SIZE < static_cast<size_t>(extraSize)) return nullptr;
+        outSize += static_cast<size_t>(extraSize);
     }
     return payload;
 }

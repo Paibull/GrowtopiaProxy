@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <cstring>
 
 struct TileExtra {
     uint8_t type;
@@ -38,13 +39,24 @@ public:
         if (Type != 4 || !packet || !packet->data) return true;
 
         const uint8_t* data = packet->data;
+        const size_t size = packet->dataLength;
 
-        uint8_t name_len = *(uint8_t*)(data + 66);
-        std::string world_name((char*)(data + 68), name_len);
+        /* Every read below was unchecked. name_len is a byte off the wire, so
+           a short or truncated map-data packet read up to 255 bytes past the
+           end of the ENet buffer and copied them into world_name. The world
+           name is the only thing this handler actually produces, so bail
+           quietly rather than parse a packet that cannot hold one. */
+        if (size < 78) return true;
 
-        uint8_t xSize = *(uint8_t*)(data + 68 + name_len);
-        uint8_t ySize = *(uint8_t*)(data + 72 + name_len);
-        uint16_t block_count = *(uint16_t*)(data + 76 + name_len);
+        uint8_t name_len = data[66];
+        if (size < 78u + name_len) return true;
+
+        std::string world_name((const char*)(data + 68), name_len);
+
+        uint8_t xSize = data[68 + name_len];
+        uint8_t ySize = data[72 + name_len];
+        uint16_t block_count = 0;
+        std::memcpy(&block_count, data + 76 + name_len, sizeof(block_count));
 
         LOG_DEBUG("World Name: {}", world_name);
         LOG_DEBUG("World Size: {} x {}", xSize, ySize);
@@ -52,16 +64,10 @@ public:
 
         Player.world = world_name;
 
-        const uint8_t* blc = data + 80 + name_len;
-        blc += 5; // server extra skip
-        const uint8_t* blc_end = data + packet->dataLength;
-
-        for (uint16_t i = 0; i < block_count; i++) {
-            int x = i % xSize;
-            int y = i / xSize;
-
-            parse_tile(blc, blc_end, x, y);
-        }
+        /* The tile walk that used to be here called an empty parse_tile, so it
+           produced nothing while forming pointers past the end of the buffer
+           and dividing by xSize, which is zero on a malformed packet. Add it
+           back with parse_tile when there is something to parse. */
 
         return true;
     }

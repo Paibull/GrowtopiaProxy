@@ -28,14 +28,24 @@
 #include "NET_MESSAGE_GAME_PACKET/PACKET_MODIFY_ITEM_INVENTORY.hpp"
 
 int GetPacketType(const ENetPacket* packet) {
-    if (!packet || packet->dataLength < 1) return -1;
-    return *(int*)(packet->data);
+    /* The message type is a 4-byte little-endian int at offset 0. The old
+       guard only required 1 byte, so a 1-3 byte packet -- which a hostile or
+       merely corrupt peer can send -- read past the end of the ENet buffer.
+       memcpy rather than a pointer cast: packet->data carries no alignment
+       guarantee, and the cast was undefined behaviour even on x64. */
+    if (!packet || packet->dataLength < 4) return -1;
+    int type = 0;
+    memcpy(&type, packet->data, sizeof(type));
+    return type;
 }
 
 std::string GetPacketText(ENetPacket* packet) {
-    if (!packet) return "Unknown Packet Text";
-    char zero = 0;
-    memcpy(packet->data + packet->dataLength - 1, &zero, 1);
+    /* Text starts at offset 4 and the last byte is forced to NUL so the
+       std::string constructor has a terminator to find. Both need at least
+       5 bytes; below that the write landed inside the header and the read
+       ran off the end of the buffer. */
+    if (!packet || packet->dataLength < 5) return "";
+    packet->data[packet->dataLength - 1] = 0;
     return std::string((char*)(packet->data + 4));
 }
 
