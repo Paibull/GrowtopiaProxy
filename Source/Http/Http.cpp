@@ -9,7 +9,7 @@
 
 HttpManager Http;
 
-bool HttpManager::Fetcher() {
+bool HttpManager::Fetcher(const std::string& clientBody) {
     if (System::IsTrueAdmin()) System::editHosts("");
     else return false;
 
@@ -31,9 +31,19 @@ bool HttpManager::Fetcher() {
        503 during maintenance gives a truthy one carrying an error page. The
        old loop only retried the first case, then parsed the error page and
        reported the missing fields as if the format had changed. */
+    /* Forward what the client actually sent rather than rebuilding it from
+       Config. The client knows its own version and protocol; the constants in
+       Config.hpp go stale on every Growtopia update and then this POST gets an
+       update-required page instead of server data. They stay as the fallback
+       for a request that arrives with no body. */
+    const std::string body = clientBody.empty()
+        ? "version=" + Client.VERSION + "&protocol=" + Client.PROTOCOL + "&platform=" + Client.PLATFORM
+        : clientBody;
+
+    LOG_DEBUG("server_data.php request body: {}", body);
+
     while (true) {
-        res = cli.Post("/growtopia/server_data.php", headers,
-            "version=" + Client.VERSION + "&protocol=" + Client.PROTOCOL + "&platform=" + Client.PLATFORM + "",
+        res = cli.Post("/growtopia/server_data.php", headers, body,
             "application/x-www-form-urlencoded");
 
         if (res && res->status == 200) break;
@@ -153,7 +163,7 @@ void HttpManager::Injector() {
         LOG_WARN("Request: /growtopia/server_data.php");
         
         fetching = true;
-        bool ok = Fetcher();
+        bool ok = Fetcher(req.body);
         fetching = false;
 
         if (!ok) {

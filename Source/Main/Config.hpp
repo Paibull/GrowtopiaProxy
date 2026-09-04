@@ -33,6 +33,9 @@ inline gServer Server;
 
 
 struct gClient {
+    /* @info: Fallback only. The proxy forwards the client's own POST body to
+       growtopia2.com, so these are used solely when a request arrives without
+       one -- you no longer have to bump them on every Growtopia update. */
     std::string VERSION = "5.44";
     std::string PROTOCOL = "225";
     std::string PLATFORM = "0,1,1"; /* @info: Don't change if you are on 'Windows' */

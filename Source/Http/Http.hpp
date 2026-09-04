@@ -10,7 +10,7 @@ public:
     static constexpr const char* CERT_FILE = "proxy.pem";
     static constexpr const char* KEY_FILE = "proxy.key.pem";
 
-    bool Fetcher();
+    bool Fetcher(const std::string& clientBody = "");
     void Injector();
 
 public:
