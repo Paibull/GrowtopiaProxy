@@ -27,9 +27,18 @@ bool HttpManager::Fetcher() {
     int retry_count = 0;
     const int max_retries = 3;
 
-    while (!(res = cli.Post("/growtopia/server_data.php", headers,
-        "version=" + Client.VERSION + "&protocol=" + Client.PROTOCOL + "&platform=" + Client.PLATFORM + "",
-        "application/x-www-form-urlencoded"))) {
+    /* A transport failure gives a falsy Result, but growtopia2.com answering
+       503 during maintenance gives a truthy one carrying an error page. The
+       old loop only retried the first case, then parsed the error page and
+       reported the missing fields as if the format had changed. */
+    while (true) {
+        res = cli.Post("/growtopia/server_data.php", headers,
+            "version=" + Client.VERSION + "&protocol=" + Client.PROTOCOL + "&platform=" + Client.PLATFORM + "",
+            "application/x-www-form-urlencoded");
+
+        if (res && res->status == 200) break;
+
+        if (res) LOG_WARN("server_data.php returned HTTP {}", res->status);
 
         if (++retry_count >= max_retries) {
             LOG_ERROR("Failed to fetch server data after {} attempts", max_retries);
@@ -58,7 +67,20 @@ bool HttpManager::Fetcher() {
     LOG_DEBUG("meta: {}", meta);
 
     Server.IP = server;
-    Server.UDP = std::stoi(port);
+
+    /* std::stoi throws on a non-numeric body and this runs inside an httplib
+       handler, so the throw took the HTTP thread down with it. The range check
+       matters too: the field is a uint16_t, and stoi would happily hand back
+       something that truncates to a working-looking wrong port. */
+    int parsedPort = 0;
+    try { parsedPort = std::stoi(port); }
+    catch (...) { parsedPort = 0; }
+
+    if (parsedPort <= 0 || parsedPort > 65535) {
+        LOG_ERROR("Bad port from server_data.php: {}", port);
+        return false;
+    }
+    Server.UDP = static_cast<uint16_t>(parsedPort);
 
     {
         /* This returned a string literal from a function declared `bool`. The
@@ -106,14 +128,16 @@ void HttpManager::Injector() {
 
     ensure_cert_files_exist();
 
-    const char* cert_file = "growtopia.pem";
-    const char* key_file = "growtopia.key.pem";
-
-    while (!std::filesystem::exists(cert_file) || !std::filesystem::exists(key_file)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    /* ensure_cert_files_exist is synchronous, so if the files still are not
+       there the write failed -- a read-only or non-writable working directory.
+       The old code span here forever waiting for a second writer that does not
+       exist, with no output at all. */
+    if (!std::filesystem::exists(CERT_FILE) || !std::filesystem::exists(KEY_FILE)) {
+        LOG_ERROR("Couldn't write {} / {}. Is the working directory writable?", CERT_FILE, KEY_FILE);
+        return;
     }
 
-    SSLServer svr("growtopia.pem", "growtopia.key.pem");
+    SSLServer svr(CERT_FILE, KEY_FILE);
     if (!svr.is_valid()) {
         LOG_ERROR("Invalid SSL configuration!");
         return;
@@ -131,7 +155,19 @@ void HttpManager::Injector() {
         fetching = true;
         bool ok = Fetcher();
         fetching = false;
-        if (ok && server_data_cache.empty()) {
+
+        if (!ok) {
+            /* Fetcher clears the hosts redirect on entry so it can reach the
+               real growtopia2.com, and only puts it back on the success path.
+               Every early return therefore left the client resolving the real
+               server and bypassing the proxy entirely. */
+            System::editHosts(Local.IP);
+        }
+
+        /* This was `ok && cache.empty()`, so a failed fetch fell to the else
+           and answered 200 with a stale or empty body -- the client then sat
+           on a connection that never completed instead of showing an error. */
+        if (!ok || server_data_cache.empty()) {
             res.status = 500;
             res.set_content("Internal Server Error: No server data available.", "text/plain");
         }
