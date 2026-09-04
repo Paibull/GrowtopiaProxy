@@ -30,7 +30,11 @@ private:
     LuaManager(const LuaManager&) = delete;
     LuaManager& operator=(const LuaManager&) = delete;
 
-    std::mutex m_mutex;
+    /* Marks a script as occupying the interpreter, from Inject until the
+       script thread exits. Not a mutex: it is claimed on the caller's
+       thread and released on the script thread, and std::mutex may only be
+       unlocked by the thread that locked it. */
+    std::atomic<bool> m_scriptActive = false;
     sol::state m_lua;
     std::atomic<bool> m_running = false;
 
