@@ -7,6 +7,9 @@
 
 class HttpManager {
 public:
+    static constexpr const char* CERT_FILE = "proxy.pem";
+    static constexpr const char* KEY_FILE = "proxy.key.pem";
+
     bool Fetcher();
     void Injector();
 
@@ -27,67 +30,74 @@ private:
         return src.substr(pos, end - pos);
     }
 
+    /* Self-signed leaf for growtopia1/2.com, valid to 2046. The pair it
+       replaced expired on 2024-04-12 and stopped being usable a year later;
+       the filenames changed with it so an old, expired growtopia.pem left in
+       a release folder is ignored rather than silently reused -- the writes
+       below only fire when the file is missing.
+
+       The private key is in the binary on purpose: it only ever signs a
+       handshake the proxy makes with the client on 127.0.0.1, so it protects
+       nothing and is not a secret. */
     void ensure_cert_files_exist() {
-        const char* cert_file = "growtopia.pem";
-        const char* key_file = "growtopia.key.pem";
+        const char* cert_file = CERT_FILE;
+        const char* key_file = KEY_FILE;
 
         if (!std::filesystem::exists(cert_file)) {
             std::ofstream(cert_file) << R"(-----BEGIN CERTIFICATE-----
-MIIEZTCCA02gAwIBAgIUFS6HfcSIh/GshrTCiifox7GRITcwDQYJKoZIhvcNAQEL
-BQAwgYIxCzAJBgNVBAYTAklEMQswCQYDVQQIDAJKQjETMBEGA1UEBwwKSmF3YSBC
-YXJhdDEXMBUGA1UECgwOVGVhbU5ldm9sdXRpb24xFzAVBgNVBAMMDmdyb3d0b3Bp
-YTEuY29tMR8wHQYJKoZIhvcNAQkBFhBuaXhpYzBAcHJvdG9uLm1lMB4XDTI0MDQx
-MjAwNTcwNVoXDTI1MDQxMjAwNTcwNVowgYIxCzAJBgNVBAYTAklEMQswCQYDVQQI
-DAJKQjETMBEGA1UEBwwKSmF3YSBCYXJhdDEXMBUGA1UECgwOVGVhbU5ldm9sdXRp
-b24xFzAVBgNVBAMMDmdyb3d0b3BpYTEuY29tMR8wHQYJKoZIhvcNAQkBFhBuaXhp
-YzBAcHJvdG9uLm1lMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArLW7
-mxy29be21CUcnybB29rlw5TR1B6ToDWUu7YKSKIi2dTK87mVMPXOZU9LMGtpYU9o
-GeSU3tkwgWsWwGs3eenzsrCxaNCDy41Tj0GZVNHbUfFowxlDcy7xKma+TjasyB7O
-e49e/Qi6hnSgJbZYOlF3+cux64junWDCv4QmrizLOjp5sIpbiRj6wVzAVf538ruP
-HNmsv28QwSElWxkqUG2ONcW143E9/052ez5jNx8TFJTqXBsT0ZYmEfDNfI3dGOMx
-WzAu8OW83pQKAO98qPyXqf4uEncYsTokpcrhifsBECFxM3gi3ruIh7Zb7/h6IgU2
-0tjEZs8E6qnDB4CjOwIDAQABo4HQMIHNMB0GA1UdDgQWBBQEVBwF/WyNCLc9OADz
-lWa3e8EFRzAJBgNVHRMEAjAAMAsGA1UdDwQEAwIF4DATBgNVHSUEDDAKBggrBgEF
-BQcDATBRBgNVHREESjBIgg5ncm93dG9waWExLmNvbYISd3d3Lmdyb3d0b3BpYTEu
-Y29tgg5ncm93dG9waWEyLmNvbYISd3d3Lmdyb3d0b3BpYTIuY29tMCwGCWCGSAGG
-+EIBDQQfFh1PcGVuU1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTANBgkqhkiG9w0B
-AQsFAAOCAQEAlenKUyG6iTpSgC+P+MJ/46Bfqf3FTRjW9LK3LziaLZXc29h6BDCV
-PiKQ6qh/2nDFi4KUWIV50/XnSWhqVE2wlLcahvYeybLxvALL77NfZSwKRFnCJCpl
-9ZwTId8PNgbUldwjogSv8TnphQ5RsjBVI5CSToHSMUw/zwcsBUc7DIbCXkecnoV2
-QcwEQXcjEPwXeQQb2qJX4QybTkmCpaVtf5ZsZVwJMMRjYlc7AymGcsONZkn4ZX31
-PWL48vTB0rqVX/5IlP9eyAJ0uotP08USAsvNYQBaUnaqp9Xku/HiZZMJxrs5Gkpy
-BNbTRAlg/RXjV+kED1yYLrJcSiTS60oaew==
+MIIEBDCCAuygAwIBAgIUPEv6ZOUlX8kZ9Y88WYZIxeiT1r8wDQYJKoZIhvcNAQEL
+BQAwYTELMAkGA1UEBhMCSUQxCzAJBgNVBAgMAkpCMRMwEQYDVQQHDApKYXdhIEJh
+cmF0MRcwFQYDVQQKDA5Hcm93dG9waWFQcm94eTEXMBUGA1UEAwwOZ3Jvd3RvcGlh
+MS5jb20wHhcNMjYwOTA0MTg0MzE0WhcNNDYwODMwMTg0MzE0WjBhMQswCQYDVQQG
+EwJJRDELMAkGA1UECAwCSkIxEzARBgNVBAcMCkphd2EgQmFyYXQxFzAVBgNVBAoM
+Dkdyb3d0b3BpYVByb3h5MRcwFQYDVQQDDA5ncm93dG9waWExLmNvbTCCASIwDQYJ
+KoZIhvcNAQEBBQADggEPADCCAQoCggEBANPPQ4n9oAvcrBe5pwSACv9WjCYZN4Y4
+WfAAlLmiEEN6ny/pmmYlAeIkXA+sWxAlNvqvKZcwO37VkYOm0phKZRGzZcbrG2KM
+rzfd/2bFfqe6cnty1PMOBPvxaV1rR1AR0wcxaZ0JFYNN0G0lJwukgXW81d+T4Kt+
+gUECRDukvGblDkBeV4iwEL+UqJ0MBYoUWK13a25EYAvNErRPxbNKa8THWiJ1FKmg
+rJ4OmStzD7ZVjRzlK3VNquM4E/jczKSXlSAKAe7MkdveYhZJOH6FC4KjAb7Zeu9L
+PDyd+IxWIU66S07n9WB0SbF+zThi6UH4neCer12ZVZSQdR2O6V54RKECAwEAAaOB
+szCBsDAdBgNVHQ4EFgQURtLaMJ9rl28SqH++wPkiD8MnzGcwCQYDVR0TBAIwADAL
+BgNVHQ8EBAMCBaAwEwYDVR0lBAwwCgYIKwYBBQUHAwEwYgYDVR0RBFswWYIOZ3Jv
+d3RvcGlhMS5jb22CEnd3dy5ncm93dG9waWExLmNvbYIOZ3Jvd3RvcGlhMi5jb22C
+End3dy5ncm93dG9waWEyLmNvbYIJbG9jYWxob3N0hwR/AAABMA0GCSqGSIb3DQEB
+CwUAA4IBAQBdJAmch7sPOFKLU5zLpQLrY76tgpJDcMF0kOSfMgs6QkKvIz3Zw90g
+nAXZpgZQE3xpnLmvFbqsT8C7ABaOloWGFqNjQApujG1hhK6hzrh0Z0LP4vu0gT/p
+HLxkdD3Bn85NLwhcTS95St1KICtg6TMKGo3f6vf1cjQ2jjv/Z2sUDaz/0zmI6RKx
+wa7bAW3+3reGkKIakTzK0npVcW+0USmO77t5mRYJXiZL6MMK/nHtRQA0DXwQiZ5D
+jrBT5GJP4kMci9FLKkCi/DLdSPxEAgGIhXiQILajmTPW5tafeLjwYgb0yAIVxdsl
+oOzO4iWw/7TsNVYcMD4ezt0fTUvip9Ek
 -----END CERTIFICATE-----)";
         }
 
         if (!std::filesystem::exists(key_file)) {
             std::ofstream(key_file) << R"(-----BEGIN PRIVATE KEY-----
-MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCstbubHLb1t7bU
-JRyfJsHb2uXDlNHUHpOgNZS7tgpIoiLZ1MrzuZUw9c5lT0swa2lhT2gZ5JTe2TCB
-axbAazd56fOysLFo0IPLjVOPQZlU0dtR8WjDGUNzLvEqZr5ONqzIHs57j179CLqG
-dKAltlg6UXf5y7HriO6dYMK/hCauLMs6OnmwiluJGPrBXMBV/nfyu48c2ay/bxDB
-ISVbGSpQbY41xbXjcT3/TnZ7PmM3HxMUlOpcGxPRliYR8M18jd0Y4zFbMC7w5bze
-lAoA73yo/Jep/i4SdxixOiSlyuGJ+wEQIXEzeCLeu4iHtlvv+HoiBTbS2MRmzwTq
-qcMHgKM7AgMBAAECggEAT+dabxZ3XTJMT1UGK2mieeWJtJVXCKTG1vHDKJ89ncIJ
-jq9A4EbFi9vFTCDF4BZpsEAtIQGckId6Rf32DjrsdSZ0fYD660vBFf0CIj6Owmu+
-5Ofj+JNpHdKjd+MF+6iXApUiIY9Aup99sHQnnZsBsaV8dOC1JYv6HWylXTa2MJE8
-W6VANl5GjTwW4JnnutzueIoWb0xcgwTL7gmY6/0xphsgrTcowT8Wp2xJmuC30Pop
-xVGvurqo2VSy1t8p5ZspVhi/F1cLw+T713MshxYLNqjSgAFjIakYlhmqfSEE9pwP
-WpZ6w+JARsUXrUTOCWvrAWia9COREDD14kxEEfqnxQKBgQDnHJOPiwV/p+5qm52n
-TUO4M4pkysqdyIjTmcrOdnaUV6wpCrfQ3iilZFOkoV4bOdWEzhkSHyk2/pWQVk53
-ANg8WOWGLGxmOBes9Wrpw9xhpTHtSLnQNT13JMnfkQovuCLEIv0rvvRhUxid4Z2K
-1PyeJpW6CcJs95tJJ4KzLjyH7QKBgQC/Txo+q3TrQAyK5f+ZvBb92+cFrJETa1Gx
-764OM4ObV91w3hI40uEgWYmcGLLfVcrqRZfnr3w5SPk6v8iuF1QeYbBYSp8qUh8l
-44mScC0UCxT+SgylIdprg93cZ6ONZ0ROYZp7Cma4ABS566J9/2vuCg3I4I4GhHdG
-De6hDkuixwKBgQDdKBFk2UonwJF73vJceKmHCXszvINrvcyBgLf8HoyWo9cRZzpD
-W3RV4M3RysF9GDjk3zxKhRsxjymcd5qacmp6RS9O2A/bOW4eirMGg/DOWACQ6nk1
-bt0kuEWd9PNkerZ6LmlKhW7h+1yhKJdTlUEwLgg1gMVW9RLaTD7cLDCseQKBgQCc
-VpN3BXztxxC47c5cnwYW/P8ldumz+e7wP5N5DYYOi9ZuJzyy7TqGykUXqGN8+cpy
-et7xukoFMmpiJVplUrEuhtyquoip+CR2PSUu47ci+w9z46XDyQ+K719+f797jhmX
-CFJLHKvm0EIf0b2fw/06sUKkl0XZc6VZPYd2XI1Y/wKBgDFMGIBCiZXzbRgL6KJi
-xgYQb8x4OJPZmhVAHji8T0EarYqE5nbWDpn/O0Caiscpoo0aQIVFlDdDvEeW6NOF
-Ry7P+HCbIaIhBf87GnIvWUQxSKgVNNOadLf2x90OmoT4qz6H30UKRu9i4lveV77x
-yauqmi59WXT60q8HOF1smufq
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDTz0OJ/aAL3KwX
+uacEgAr/VowmGTeGOFnwAJS5ohBDep8v6ZpmJQHiJFwPrFsQJTb6rymXMDt+1ZGD
+ptKYSmURs2XG6xtijK833f9mxX6nunJ7ctTzDgT78Wlda0dQEdMHMWmdCRWDTdBt
+JScLpIF1vNXfk+CrfoFBAkQ7pLxm5Q5AXleIsBC/lKidDAWKFFitd2tuRGALzRK0
+T8WzSmvEx1oidRSpoKyeDpkrcw+2VY0c5St1TarjOBP43Mykl5UgCgHuzJHb3mIW
+STh+hQuCowG+2XrvSzw8nfiMViFOuktO5/VgdEmxfs04YulB+J3gnq9dmVWUkHUd
+juleeEShAgMBAAECggEABojAYztySQcIJs5PcE9rdfpyq798leID+P9paJtdbyse
+7OLIx3QA57vtJSG563LoRlbhSaEMbNHYe9xJfkKX0mx4g4uuZ7qq4PIEVnAT7FL+
+A/R4nfGluuWjhs3YkfDrjgDApOz13IeePR8DVpPtkZQ5h/EMVpyXPWFl7b948ba0
+7vmocNHlPoY8B5QjccGIgru4WHpWCzV1udjVZm6AVQsaxLAV+qxXW5SyMvURPf5q
+kBvelgauEzSI2SAlmunD/Uec3126ZDB2cWWKEWeNYmoput665pu3NvT1tJehxrcy
+dWvF0KyzG3mENtOENgvTfvHqCWEDZvB+WAVUiIZI2wKBgQD+IpBKYCERwhzMnw+F
+e7S+lh2WQNajzI72SiolRKv3rsHoPsteT1S8eK44asurtABxU6Q8ZFHdHYwuUAHM
+j9CpoNQMqSLVYRkgylh8EYZd66OixFue145O3RBIEZ0HitaC9a0uIdjP+9IgqkfD
+se72RP8aLFijFeJjlDfxVAUYzwKBgQDVXS9F2mhkMaOTxb69krOZTDiBBhzYLb1W
+4XUM6E2hNxbJf1butmnc5duBRl31nbwOYlSU4QSV3yv9tvUGv/3SnCvQmcABnSe+
+f0O/J72apB031jPNuupX7qX1Bt+XzT14zzwPh3QAvDhan0HQOSoz4EIEfXpz8DKo
+PjspseJHjwKBgDdynR7NKInyW0w97CoImp/2qs/sp6gnao3MErP87rRkucQNZ1vV
+XTyd7A09J+D3rh0LzcqrbL0cxEgahrn2KuXHxFxaztHVlKD15SZ0wGdfkV1jEEZw
+64jDbNj8ltFddn4uUjG9isueOvOLk4rcGLI8zZgNUu2KSdHGNgp+dXo7AoGBAKtk
+eIXvZW4e5dzdu1QDVVwuezFB3MfXLkJtR55/uWRooVhpf0awp6d3yXU2NmIIPDl9
+yZ3yh8FwjaD4aCns7hNRumyOJUvmlzeSebRDUy626HWjDugTXw4VuaBzzgbeKqQy
+LHf5AjlY+Rfq2G5QjVMwsTd0KHqbl8XIf7QFndSHAoGBAKBNJtD1cPIxn6Vxzkkc
+kbJXOov2R2mekKGwwpRWKIaS4ccC1Jg0PtRm7MtTuvAfzI1Xq9aoNk45zWYjQXyr
+gD/arJvy6bcWGpGTSq0ghSKNIKefsodkcXFAFqA2lOCfAkPJn8DdfImbQ1HOjOB2
+Frr1SE1MIj0rmGruN1mXl7Zx
 -----END PRIVATE KEY-----)";
         }
     }
