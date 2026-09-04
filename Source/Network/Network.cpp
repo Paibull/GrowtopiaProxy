@@ -133,20 +133,24 @@ void NetworkManager::Injector() {
                         client_peer->pingInterval = 300;
                         enet_peer_throttle_configure(client_peer, 0, 0, 0);
 
-                        {
-                            std::lock_guard<std::recursive_mutex> lock(peer_mutex);
-
-                            client_to_server.clear();
-                            server_to_client.clear();
-
-                            client_to_server[client_peer] = server_peer;
-                            server_to_client[server_peer] = client_peer;
+                        /* One client at a time, so a new connection replaces
+                           whatever was mapped before. Tear the old session's
+                           upstream link down first -- clearing the maps on its
+                           own left the previous server peer connected to the
+                           real Growtopia server with nothing routing to it. */
+                        for (auto& [old_client, old_server] : client_to_server) {
+                            if (old_server) enet_peer_disconnect_now(old_server, 0);
+                            if (old_client && old_client != client_peer) enet_peer_disconnect_now(old_client, 0);
                         }
+                        client_to_server.clear();
+                        server_to_client.clear();
+
+                        client_to_server[client_peer] = server_peer;
+                        server_to_client[server_peer] = client_peer;
 
                         break;
                     }
                     case ENET_EVENT_TYPE_DISCONNECT: {
-                        std::lock_guard<std::recursive_mutex> lock(peer_mutex);
                         auto it = client_to_server.find(client_peer);
                         if (it != client_to_server.end()) {
                             ENetPeer* server_peer = it->second;
