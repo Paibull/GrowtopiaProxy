@@ -2,7 +2,10 @@
 #include "../Network/Network.hpp"
 #include "../Player/Player.hpp"
 
-std::string type;
+/* Remembers the previously inserted string so the next Insert can append the
+   dialog colours. Thread-local because Lua, /farm and /spam build packets on
+   their own threads and were all sharing this one global. */
+thread_local std::string type;
 
 GamePacketBuilder::GamePacketBuilder(int delay, int NetID) : packet_data(61) {
     len = 61;
@@ -74,11 +77,13 @@ GamePacketBuilder& GamePacketBuilder::Insert(long long int a) {
 }
 
 void GamePacketBuilder::CreatePacket(ENetPeer* peer) {
-    ENetPacket* packet = enet_packet_create(packet_data.data(), len, 1);
-    {
-        std::lock_guard<std::mutex> lock(Network.peer_mutex);
-        enet_peer_send(peer, 0, packet);
-    }
+    std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
+
+    if (!peer || peer->state != ENET_PEER_STATE_CONNECTED) return;
+
+    ENetPacket* packet = enet_packet_create(packet_data.data(), len, ENET_PACKET_FLAG_RELIABLE);
+    if (!packet) return;
+    if (enet_peer_send(peer, 0, packet) != 0) enet_packet_destroy(packet);
 }
 
 template<typename T>

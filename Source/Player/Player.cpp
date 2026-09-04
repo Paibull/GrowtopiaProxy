@@ -190,14 +190,14 @@ void PlayerState::Warp(std::string worldName, ENetPeer* CLIENT, ENetPeer* SERVER
         if (!Player.world.empty()) {
             std::string quitPacket = "action|quit_to_exit\n";
             {
-                std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                 SendPacket(SERVER, Network.NET_MESSAGE_GAME_MESSAGE, quitPacket.c_str(), static_cast<int>(quitPacket.length()));
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         }
         std::string joinPacket = "action|join_request\nname|" + newWorld + "\ninvitedWorld|0\n\n";
         {
-            std::lock_guard<std::mutex> lock(Network.peer_mutex);
+            std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
             SendPacket(SERVER, Network.NET_MESSAGE_GAME_MESSAGE, joinPacket.c_str(), static_cast<int>(joinPacket.length()));
         }
     }).detach();
@@ -209,7 +209,7 @@ void PlayerState::Drop(int id, int count, ENetPeer* CLIENT, ENetPeer* SERVER) {
         if (HasItem(id) && GetItemCount(id) >= count) {
             std::string firstPacket = "action|drop\n|itemID|" + std::to_string(id) + "\n";
             {
-                std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                 SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, firstPacket.c_str(), static_cast<int>(firstPacket.length()));
             }
 
@@ -220,7 +220,7 @@ void PlayerState::Drop(int id, int count, ENetPeer* CLIENT, ENetPeer* SERVER) {
 
             std::string secondPacket = "action|dialog_return\ndialog_name|drop_item\nitemID|" + std::to_string(id) + "|\ncount|" + std::to_string(count) + "\n";
             {
-                std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                 SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, secondPacket.c_str(), static_cast<int>(secondPacket.length()));
             }
 
@@ -243,7 +243,7 @@ void PlayerState::Trash(int id, int count, ENetPeer* CLIENT, ENetPeer* SERVER) {
         if (HasItem(id) && GetItemCount(id) >= count) {
             std::string firstPacket = "action|trash\n|itemID|" + std::to_string(id) + "\n";
             {
-                std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                 SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, firstPacket.c_str(), static_cast<int>(firstPacket.length()));
             }
 
@@ -254,7 +254,7 @@ void PlayerState::Trash(int id, int count, ENetPeer* CLIENT, ENetPeer* SERVER) {
 
             std::string secondPacket = "action|dialog_return\ndialog_name|trash_item\nitemID|" + std::to_string(id) + "|\ncount|" + std::to_string(count) + "\n";
             {
-                std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                 SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, secondPacket.c_str(), static_cast<int>(secondPacket.length()));
             }
 
@@ -343,14 +343,14 @@ void PlayerState::AutoFarm(ENetPeer* CLIENT, ENetPeer* SERVER) {
         if (AutofarmReady() && SERVER) {
             for (int i = 0; i < 3; i++) {
                 {
-                    std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                    std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                     Punch(autofarm.X, autofarm.Y, autofarm.punchX, autofarm.punchY, SERVER);
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(punchDelay(gen)));
             }
             
             if (HasItem(autofarm.id)) {
-                std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                 Place(autofarm.id, autofarm.X, autofarm.Y, autofarm.punchX, autofarm.punchY, SERVER);
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(placeDelay(gen)));
@@ -371,7 +371,7 @@ void PlayerState::AutoSpam(ENetPeer* CLIENT, ENetPeer* SERVER) {
     while (autospam.running) {
         std::string text1 = "action|input\n|text|" + (autospam.rainbow ? colors[dis(gen)] : "") + autospam.text1 + "\n";
         {
-            std::lock_guard<std::mutex> lock(Network.peer_mutex);
+            std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
             SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, text1.c_str(), static_cast<int>(text1.length()));
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(autospam.delay));
@@ -379,7 +379,7 @@ void PlayerState::AutoSpam(ENetPeer* CLIENT, ENetPeer* SERVER) {
 
         std::string text2 = "action|input\n|text|" + (autospam.rainbow ? colors[dis(gen)] : "") + (autospam.text2.empty() ? autospam.text1 : autospam.text2) + "\n";
         {
-            std::lock_guard<std::mutex> lock(Network.peer_mutex);
+            std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
             SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, text2.c_str(), static_cast<int>(text2.length()));
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(autospam.delay));

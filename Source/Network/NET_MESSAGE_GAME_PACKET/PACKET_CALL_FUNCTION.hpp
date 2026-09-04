@@ -166,7 +166,7 @@ public:
 
                                 std::string sendNumber = "action|dialog_return\ndialog_name|phonecall\ntilex|" + std::to_string(tilex) + "|\ntiley|" + std::to_string(tiley) + "|\nnum|-2|\ndial|53785\n\n";
                                 {
-                                    std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                                    std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                                     SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, sendNumber.c_str(), sendNumber.length());
                                 }
 
@@ -179,7 +179,7 @@ public:
                             if (tilex != -1 && tiley != -1 && Player.GetItemCount(1796) >= 100 && Player.GetItemCount(7188) < 200) {
                                 std::string sendBGL = "action|dialog_return\ndialog_name|phonecall\ntilex|" + std::to_string(tilex) + "|\ntiley|" + std::to_string(tiley) + "|\nnum|53785|\nbuttonClicked|chc5\n\n\n";
                                 {
-                                    std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                                    std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                                     SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, sendBGL.c_str(), sendBGL.length());
                                 }
 
@@ -196,7 +196,7 @@ public:
                             if (tilex != -1 && tiley != -1 && Player.GetItemCount(1796) >= 100 && Player.GetItemCount(7188) < 200) {
                                 std::string sendBGL = "action|dialog_return\ndialog_name|phonecall\ntilex|" + std::to_string(tilex) + "|\ntiley|" + std::to_string(tiley) + "|\nnum|-34|\nbuttonClicked|chc0\n\n\n";
                                 {
-                                    std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                                    std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                                     SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, sendBGL.c_str(), sendBGL.length());
                                 }
 

@@ -21,7 +21,14 @@ public:
     std::unordered_map<ENetPeer*, ENetPeer*> client_to_server;
     std::unordered_map<ENetPeer*, ENetPeer*> server_to_client;
 
-    std::mutex peer_mutex;
+    /* Guards the two maps AND every ENet host/peer call. ENet has no internal
+       locking, so the service loop and the worker threads (Lua, /farm, /spam,
+       Warp) must not touch a host at the same time.
+
+       Recursive because the service loop holds it across enet_host_service,
+       and the packet handlers it calls -- COMMANDS, WRENCH,
+       PACKET_CALL_FUNCTION, Player::Drop -- lock it again on the way down. */
+    std::recursive_mutex peer_mutex;
 
 public:
     enum {

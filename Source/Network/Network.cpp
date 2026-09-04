@@ -101,7 +101,15 @@ void NetworkManager::Injector() {
     if (!log2.empty()) LOG_ERROR("{}", log2);
 
     while (STATUS == 2) {
-        int waitingPacket = 0;
+        {
+        /* Held across the whole service pass. ENet does no locking of its own,
+           so a Lua script or /farm calling enet_peer_send while we are inside
+           enet_host_service corrupts the host's outgoing command queue. The
+           worker threads take the same lock in SendPacket / CreatePacket /
+           send_raw; the sleep below is deliberately outside it so they get a
+           chance to run. */
+        std::lock_guard<std::recursive_mutex> lock(peer_mutex);
+
         if (PROXY_HOST) {
             while (enet_host_service(PROXY_HOST, &PROXY_EVENT, 0) > 0) {
                 ENetPeer* client_peer = PROXY_EVENT.peer;
@@ -126,7 +134,7 @@ void NetworkManager::Injector() {
                         enet_peer_throttle_configure(client_peer, 0, 0, 0);
 
                         {
-                            std::lock_guard<std::mutex> lock(peer_mutex);
+                            std::lock_guard<std::recursive_mutex> lock(peer_mutex);
 
                             client_to_server.clear();
                             server_to_client.clear();
@@ -138,7 +146,7 @@ void NetworkManager::Injector() {
                         break;
                     }
                     case ENET_EVENT_TYPE_DISCONNECT: {
-                        std::lock_guard<std::mutex> lock(peer_mutex);
+                        std::lock_guard<std::recursive_mutex> lock(peer_mutex);
                         auto it = client_to_server.find(client_peer);
                         if (it != client_to_server.end()) {
                             ENetPeer* server_peer = it->second;
@@ -156,7 +164,7 @@ void NetworkManager::Injector() {
 
                         ENetPeer* server_peer = nullptr;
                         {
-                            std::lock_guard<std::mutex> lock(peer_mutex);
+                            std::lock_guard<std::recursive_mutex> lock(peer_mutex);
                             auto it = client_to_server.find(client_peer);
                             if (it != client_to_server.end()) server_peer = it->second;
                         }
@@ -186,7 +194,7 @@ void NetworkManager::Injector() {
                         break;
                     }
                     case ENET_EVENT_TYPE_DISCONNECT: {
-                        std::lock_guard<std::mutex> lock(peer_mutex);
+                        std::lock_guard<std::recursive_mutex> lock(peer_mutex);
                         auto it = server_to_client.find(server_peer);
                         if (it != server_to_client.end()) {
                             ENetPeer* client_peer = it->second;
@@ -204,7 +212,7 @@ void NetworkManager::Injector() {
 
                         ENetPeer* client_peer = nullptr;
                         {
-                            std::lock_guard<std::mutex> lock(peer_mutex);
+                            std::lock_guard<std::recursive_mutex> lock(peer_mutex);
                             auto it = server_to_client.find(server_peer);
                             if (it != server_to_client.end()) client_peer = it->second;
                         }
@@ -223,6 +231,7 @@ void NetworkManager::Injector() {
 
         if (PROXY_HOST) enet_host_flush(PROXY_HOST);
         if (SERVER_HOST) enet_host_flush(SERVER_HOST);
+        }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }

@@ -131,7 +131,7 @@ void LuaManager::RegisterFunctions() {
         if (!m_client || !m_server) { LOG_ERROR("Peers not set!"); return; }
         ENetPeer* peer = (target == "server") ? m_server : m_client;
         {
-            std::lock_guard<std::mutex> lock(Network.peer_mutex);
+            std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
             SendPacket(peer, type, text.c_str(), text.length());
         }
     });

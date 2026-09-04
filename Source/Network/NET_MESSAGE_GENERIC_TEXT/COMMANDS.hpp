@@ -403,7 +403,7 @@ public:
 				for (const auto& pair : Player.worldPlayers) {
 					std::string packetNew = "action|input\n|text|/" + action + " " + pair.second + "\n";
 					{
-						std::lock_guard<std::mutex> lock(Network.peer_mutex);
+						std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
 						SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, packetNew.c_str(), static_cast<int>(packetNew.length()));
 					}
 					std::this_thread::sleep_for(std::chrono::milliseconds(100));

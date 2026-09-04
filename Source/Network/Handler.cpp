@@ -48,12 +48,21 @@ std::string GetPacketHex(const ENetPacket* packet) {
 }
 
 void SendPacket(ENetPeer* peer, int num, const char* data, size_t len) {
+    /* ENet is not thread-safe. Lua scripts, /farm, /spam and the detached
+       thread in Warp all reach this from outside the network thread, so every
+       send has to hold the same lock the service loop holds. */
+    std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
+
+    if (!peer || peer->state != ENET_PEER_STATE_CONNECTED) return;
+
     ENetPacket* packet = enet_packet_create(nullptr, len + 5, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) return;
     memcpy(packet->data, &num, 4);
     if (data && len > 0) memcpy(packet->data + 4, data, len);
     packet->data[4 + len] = 0x00;
-    enet_peer_send(peer, 0, packet);
+    /* enet_peer_send takes ownership only when it succeeds; on failure the
+       packet is ours to free or it leaks. */
+    if (enet_peer_send(peer, 0, packet) != 0) enet_packet_destroy(packet);
     /* SendPacket(event.peer, type, string.c_str(), string.length()); */
 }
 
@@ -71,7 +80,7 @@ bool HandlePacket(int type, ENetPacket* packet, ENetPeer* to) {
     if (type == Network.CLIENT_PROXY_SERVER) {
         Method = "CLIENT -> PROXY -> SERVER";
         {
-            std::lock_guard<std::mutex> lock(Network.peer_mutex);
+            std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
             auto it = Network.server_to_client.find(to);
             if (it != Network.server_to_client.end()) {
                 SERVER = to;
@@ -82,7 +91,7 @@ bool HandlePacket(int type, ENetPacket* packet, ENetPeer* to) {
     else if (type == Network.SERVER_PROXY_CLIENT) {
         Method = "SERVER -> PROXY -> CLIENT";
         {
-            std::lock_guard<std::mutex> lock(Network.peer_mutex);
+            std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
             auto it = Network.client_to_server.find(to);
             if (it != Network.client_to_server.end()) {
                 CLIENT = to;

@@ -36,7 +36,7 @@ public:
 
                 std::string pullPacket = "action|input\n|text|" + cmd + thatName + "\n";
                 {
-                    std::lock_guard<std::mutex> lock(Network.peer_mutex);
+                    std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
                     SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, pullPacket.c_str(), pullPacket.length());
                 }
                 return false;
