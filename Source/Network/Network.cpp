@@ -36,6 +36,11 @@ std::string NetworkManager::Setup(int which) {
         STATUS = 1;
     }
     else if (which == 2) {
+        /* Server.IP / Server.UDP are filled in by the HTTP fetch. Reaching
+           here without them means the fetch never completed, and connecting to
+           0.0.0.0:0 just hangs with no explanation. */
+        if (Server.IP.empty() || Server.UDP == 0) return "Server address not fetched yet!";
+
         memset(&SERVER_ADDRESS, 0, sizeof(SERVER_ADDRESS));
         SERVER_ADDRESS.type = ENET_ADDRESS_TYPE_IPV4;
         if (enet_address_set_host_ip(&SERVER_ADDRESS, Server.IP.c_str()) != 0) return "Invalid server IP!";
@@ -79,9 +84,13 @@ void NetworkManager::Injector() {
         if (!waiting_logged) {
             LOG_WARN("Starting Growtopia.exe");
             waiting_logged = true;
-            
-            std::wstring path = std::wstring(_wgetenv(L"LOCALAPPDATA")) + L"\\Growtopia\\Growtopia.exe";
-            System::startProcess(path);
+
+            /* std::wstring has no null-pointer constructor -- building one
+               from a missing LOCALAPPDATA was an immediate crash rather than a
+               message telling you to start the game yourself. */
+            const wchar_t* localAppData = _wgetenv(L"LOCALAPPDATA");
+            if (localAppData) System::startProcess(std::wstring(localAppData) + L"\\Growtopia\\Growtopia.exe");
+            else LOG_ERROR("LOCALAPPDATA is not set; start Growtopia.exe yourself.");
         }
     }
 

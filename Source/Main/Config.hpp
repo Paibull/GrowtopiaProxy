@@ -25,7 +25,9 @@ inline gLocal Local;
 struct gServer {
 	/* @important: Fetching from www.growtopia2.com(do not change) */
 	std::string IP = ""; // empty if real gt
-	uint16_t UDP = -1; // -1 if real gt
+	/* 0, not -1: the field is unsigned, so -1 silently became port 65535 -- a
+	   real port number that would be used as-is if the fetch never ran. */
+	uint16_t UDP = 0; // 0 if real gt
 };
 inline gServer Server;
 
