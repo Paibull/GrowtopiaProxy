@@ -130,7 +130,32 @@ void NetworkManager::Injector() {
                         std::string ClientIP = std::string(baseIP);
 
                         LOG_INFO("Client connected to the Proxy");
-                        LOG_WARN("Waiting for the Proxy to connect the Server (connects if gt servers are online)");
+
+                        {
+                            char dialIP[64]{};
+                            enet_address_get_host_ip(&SERVER_ADDRESS, dialIP, sizeof(dialIP));
+                            /* This fork's enet_address_get_host_ip already renders
+                               the port, so don't append it again. */
+                            LOG_WARN("Dialing server {} (type {})", dialIP, (int)SERVER_ADDRESS.type);
+                        }
+
+                        /* One client at a time, so a new connection replaces
+                           whatever was mapped before. Tear the old session's
+                           upstream link down first -- clearing the maps on its
+                           own left the previous server peer connected to the
+                           real Growtopia server with nothing routing to it.
+
+                           This has to happen BEFORE enet_host_connect, not
+                           after: SERVER_HOST is created with room for exactly
+                           one peer, so a stale peer still holding that slot
+                           makes the connect below fail outright. The sub-server
+                           handoff reconnects, so this path runs on every login. */
+                        for (auto& [old_client, old_server] : client_to_server) {
+                            if (old_server) enet_peer_disconnect_now(old_server, 0);
+                            if (old_client && old_client != client_peer) enet_peer_disconnect_now(old_client, 0);
+                        }
+                        client_to_server.clear();
+                        server_to_client.clear();
 
                         ENetPeer* server_peer = enet_host_connect(SERVER_HOST, &SERVER_ADDRESS, 2, 0);
                         if (!server_peer) {
@@ -141,18 +166,6 @@ void NetworkManager::Injector() {
 
                         client_peer->pingInterval = 300;
                         enet_peer_throttle_configure(client_peer, 0, 0, 0);
-
-                        /* One client at a time, so a new connection replaces
-                           whatever was mapped before. Tear the old session's
-                           upstream link down first -- clearing the maps on its
-                           own left the previous server peer connected to the
-                           real Growtopia server with nothing routing to it. */
-                        for (auto& [old_client, old_server] : client_to_server) {
-                            if (old_server) enet_peer_disconnect_now(old_server, 0);
-                            if (old_client && old_client != client_peer) enet_peer_disconnect_now(old_client, 0);
-                        }
-                        client_to_server.clear();
-                        server_to_client.clear();
 
                         client_to_server[client_peer] = server_peer;
                         server_to_client[server_peer] = client_peer;

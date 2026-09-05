@@ -288,6 +288,11 @@ public:
                                 return "Invalid newServerIP IP for OnSendToServer!";
                             }
                             Network.GetServerAddress().port = newServerUDP;
+
+                            char checkIP[64]{};
+                            enet_address_get_host_ip(&Network.GetServerAddress(), checkIP, sizeof(checkIP));
+                            LOG_WARN("OnSendToServer redirect: parsed {}:{}, address now {}",
+                                     newServerIP, newServerUDP, checkIP);
                         }
 
                         {
