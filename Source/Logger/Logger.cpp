@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <share.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -63,6 +64,17 @@ namespace FastLog {
             if (GetConsoleMode(hOut, &dwMode)) SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
         }
 #endif
+        /* Opened before the writer thread starts so it is never read half-set.
+           Truncated per run: this is a diagnostic tail, not an archive. A failure
+           to open costs the mirror and nothing else -- the console still works. */
+        if (!file_) {
+            /* _fsopen, not fopen_s: fopen_s opens with no sharing at all, which
+               locks the file for the whole run -- unreadable while the proxy is
+               up, which defeats the point of writing it. _SH_DENYWR lets anyone
+               read the log live while keeping other writers out. */
+            file_ = _fsopen("proxy.log", "w", _SH_DENYWR);
+        }
+
         running_.store(true, std::memory_order_release);
         writer_ = std::thread(&Logger::writer_loop, this);
 
@@ -73,6 +85,12 @@ namespace FastLog {
     void Logger::stop() noexcept {
         running_.store(false, std::memory_order_release);
         if (writer_.joinable()) writer_.join();
+
+        /* After the join: the writer is the only thing that touches file_. */
+        if (file_) {
+            std::fclose(file_);
+            file_ = nullptr;
+        }
     }
 
     char*& Logger::thread_name_ptr() noexcept {
@@ -138,18 +156,27 @@ namespace FastLog {
                 tm_struct.tm_sec
             );
 
+            const char* lvl = level_to_string(slot.level);
+            const char* tname = slot.thread_name[0] ? slot.thread_name : "MAIN";
+
             const char* color = level_color(slot.level);
             std::fwrite(color, 1, std::strlen(color), stdout);
 
-            std::printf("[%s] [%-5s] [%s] ",
-                ts,
-                level_to_string(slot.level),
-                slot.thread_name[0] ? slot.thread_name : "MAIN"
-            );
+            std::printf("[%s] [%-5s] [%s] ", ts, lvl, tname);
 
             std::fwrite(slot.data, 1, slot.size, stdout);
             std::fwrite("\033[0m", 1, 4, stdout);
             std::fwrite("\n", 1, 1, stdout);
+
+            if (file_) {
+                std::fprintf(file_, "[%s] [%-5s] [%s] ", ts, lvl, tname);
+                std::fwrite(slot.data, 1, slot.size, file_);
+                std::fwrite("\n", 1, 1, file_);
+                /* Flushed per line on purpose: the runs worth reading are the ones
+                   that end in a crash or a kill, and a buffered tail is exactly the
+                   part that would be lost. */
+                std::fflush(file_);
+            }
 
             slot.ready.store(false, std::memory_order_release);
             read_index_.fetch_add(1, std::memory_order_relaxed);

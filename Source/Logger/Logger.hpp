@@ -12,6 +12,7 @@
 #include <string_view>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 
 namespace FastLog {
 
@@ -79,6 +80,12 @@ namespace FastLog {
         alignas(64) std::atomic<uint32_t> read_index_{ 0 };
         std::atomic<bool> running_{ false };
         std::thread writer_;
+
+        /* Mirror of the console output, minus the colour escapes. The console
+           is the only record this had, and it is gone the moment the window
+           closes -- which makes any failure that needs the log to diagnose
+           very hard to chase. */
+        std::FILE* file_ = nullptr;
 
         static char*& thread_name_ptr() noexcept;
     };
