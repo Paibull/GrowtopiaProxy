@@ -126,9 +126,6 @@ template<> struct GamePacket<OnSetFreezeState> {
     static constexpr uint8_t type = OnSetFreezeState;
     uint32_t seconds = 0;
 };
-/* Observed from the server as OnZoomCamera(FLOAT 10000.0, UINT 1000): the
-   zoom level, then how long the camera takes to travel there in ms. Whether
-   the client clamps the level is not known -- that is what /zoom is for. */
 template<> struct GamePacket<OnZoomCamera> {
     static constexpr uint8_t type = OnZoomCamera;
     float zoom = 10000.0f;
@@ -205,15 +202,6 @@ void SendGamePacket(ENetPeer* peer, const GamePacket<T>& pkt, int netID = -1) {
 
 
 namespace PMOffset {
-    /* Two coordinate systems live in here, which is easy to get wrong:
-
-       FLAG_BYTE and EXTRA_SIZE_DWORD are offsets into the 56-byte PlayerMoving
-       struct itself (flags at 0x0C, extended-data length at 0x34), matching
-       every PlayerMovingPacket setter and every PlayerMovingView reader.
-
-       DELAY and DEATH_FLAG are offsets into the full wire packet, i.e. they
-       already include the 4-byte message-type header -- the same convention
-       GamePacketBuilder uses when it stamps delay at byte 24. */
     constexpr size_t HEADER = 4;
 
     constexpr size_t FLAG_BYTE = 12;
@@ -252,8 +240,6 @@ private:
     inline void write(size_t offset, const T& v) { std::memcpy(buffer.data() + offset, &v, sizeof(T)); }
 
     static void send_raw(ENetPeer* peer, int a1, const void* packetData, size_t packetDataSize, enet_uint32 packetFlag, int delay = 0) {
-        /* Same lock as every other send: /farm drives this from its own
-           thread while the network thread is inside enet_host_service. */
         std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
 
         if (!peer || peer->state != ENET_PEER_STATE_CONNECTED) return;
@@ -263,10 +249,6 @@ private:
         const bool hasExtra = (data[PMOffset::FLAG_BYTE] & 8) != 0;
         size_t extraSize = 0;
         if (hasExtra && packetDataSize >= PMOffset::EXTRA_SIZE_DWORD + sizeof(int32_t)) {
-            /* Read as a signed int32 and reject negatives before widening.
-               The old code memcpy'd 4 bytes into a size_t and then tested
-               `extraSize < 0`, which is never true for an unsigned type -- a
-               negative length became a ~4GB allocation request instead. */
             int32_t raw = 0;
             std::memcpy(&raw, data + PMOffset::EXTRA_SIZE_DWORD, sizeof(raw));
             if (raw > 0) extraSize = static_cast<size_t>(raw);
@@ -280,11 +262,6 @@ private:
         if (extraSize > 0) std::memset(p->data + PMOffset::HEADER + packetDataSize, 0, extraSize);
         if (delay != 0) {
             constexpr int deathFlag = 0x19;
-            /* DELAY and DEATH_FLAG are packet-relative, so they index p->data
-               directly. The bound has to be totalSize and has to cover
-               DEATH_FLAG, the higher of the two -- the old check only proved
-               there was room for DELAY, so a short payload wrote past the end
-               of the packet. */
             if (totalSize >= PMOffset::DEATH_FLAG + 4) {
                 std::memcpy(p->data + PMOffset::DELAY, &delay, 4);
                 std::memcpy(p->data + PMOffset::DEATH_FLAG, &deathFlag, 4);
@@ -358,15 +335,6 @@ struct ModifyItemInventoryPacket {
 
 
 inline const BYTE* get_packet_payload(const ENetPacket* packet, size_t& outSize) {
-    /* FLAG_BYTE and EXTRA_SIZE_DWORD are struct-relative, so reading them off
-       packet->data skipped the 4-byte header and landed 4 bytes early -- the
-       flag test hit the item field and the length came from the punch
-       coordinates. A wrong "has extra data" hit then added a garbage length to
-       outSize, and since PlayerMovingView bounds-checks against outSize alone,
-       every subsequent read could run past the end of the ENet buffer.
-
-       The header is also part of the minimum: a PlayerMoving packet is 4 + 56
-       bytes before any extended data, not 56. */
     constexpr size_t MIN_SIZE = PMOffset::HEADER + PMOffset::STRUCT_SIZE;
 
     if (!packet || packet->dataLength < MIN_SIZE) return nullptr;

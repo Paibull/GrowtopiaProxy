@@ -28,11 +28,6 @@
 #include "NET_MESSAGE_GAME_PACKET/PACKET_MODIFY_ITEM_INVENTORY.hpp"
 
 int GetPacketType(const ENetPacket* packet) {
-    /* The message type is a 4-byte little-endian int at offset 0. The old
-       guard only required 1 byte, so a 1-3 byte packet -- which a hostile or
-       merely corrupt peer can send -- read past the end of the ENet buffer.
-       memcpy rather than a pointer cast: packet->data carries no alignment
-       guarantee, and the cast was undefined behaviour even on x64. */
     if (!packet || packet->dataLength < 4) return -1;
     int type = 0;
     memcpy(&type, packet->data, sizeof(type));
@@ -40,10 +35,6 @@ int GetPacketType(const ENetPacket* packet) {
 }
 
 std::string GetPacketText(ENetPacket* packet) {
-    /* Text starts at offset 4 and the last byte is forced to NUL so the
-       std::string constructor has a terminator to find. Both need at least
-       5 bytes; below that the write landed inside the header and the read
-       ran off the end of the buffer. */
     if (!packet || packet->dataLength < 5) return "";
     packet->data[packet->dataLength - 1] = 0;
     return std::string((char*)(packet->data + 4));
@@ -58,9 +49,6 @@ std::string GetPacketHex(const ENetPacket* packet) {
 }
 
 void SendPacket(ENetPeer* peer, int num, const char* data, size_t len) {
-    /* ENet is not thread-safe. Lua scripts, /farm, /spam and the detached
-       thread in Warp all reach this from outside the network thread, so every
-       send has to hold the same lock the service loop holds. */
     std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
 
     if (!peer || peer->state != ENET_PEER_STATE_CONNECTED) return;
@@ -70,8 +58,6 @@ void SendPacket(ENetPeer* peer, int num, const char* data, size_t len) {
     memcpy(packet->data, &num, 4);
     if (data && len > 0) memcpy(packet->data + 4, data, len);
     packet->data[4 + len] = 0x00;
-    /* enet_peer_send takes ownership only when it succeeds; on failure the
-       packet is ours to free or it leaks. */
     if (enet_peer_send(peer, 0, packet) != 0) enet_packet_destroy(packet);
     /* SendPacket(event.peer, type, string.c_str(), string.length()); */
 }
@@ -274,18 +260,6 @@ bool HandlePacket(int type, ENetPacket* packet, ENetPeer* to) {
                 }
 
                 case Network.PACKET_APP_INTEGRITY_FAIL: {
-                    /* The client telling the server, unprompted, that its own state
-                       looks tampered with. This is what actually bans accounts: on
-                       2026-09-05 an injected OnZoomCamera with a divisor below 1
-                       produced this packet, and a 60-day automatic ban landed two
-                       seconds later.
-
-                       It is still forwarded, deliberately. Dropping it would be
-                       building anti-cheat evasion, which is a different thing from
-                       making the proxy safe to develop against. What the proxy owes
-                       you is the warning -- so a feature that trips this is caught on
-                       the first test rather than the first ban, including on a
-                       private server, where nothing else will ever tell you. */
                     LOG_ERROR("PACKET_APP_INTEGRITY_FAIL -- the client just reported ITSELF to the server.");
                     LOG_ERROR("Whatever was injected last is detected as tampering. Stop using it.");
                     LOG_ERROR("On the real Growtopia servers an automatic ban follows within seconds.");

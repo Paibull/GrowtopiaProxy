@@ -183,11 +183,6 @@ void LuaManager::RegisterFunctions() {
 }
 
 void LuaManager::Inject(const std::string& filename) {
-    /* This used to be m_mutex.try_lock() here and m_mutex.unlock() inside the
-       script thread. A std::mutex may only be unlocked by the thread that
-       locked it, so every script release was undefined behaviour -- it just
-       happened not to fault on MSVC's implementation. An atomic claim says
-       the same thing and is allowed to cross threads. */
     bool expected = false;
     if (!m_scriptActive.compare_exchange_strong(expected, true)) {
         LOG_WARN("A script is already running, ignoring {}", filename);

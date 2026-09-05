@@ -2,9 +2,6 @@
 #include "../Network/Network.hpp"
 #include "../Player/Player.hpp"
 
-/* Remembers the previously inserted string so the next Insert can append the
-   dialog colours. Thread-local because Lua, /farm and /spam build packets on
-   their own threads and were all sharing this one global. */
 thread_local std::string type;
 
 GamePacketBuilder::GamePacketBuilder(int delay, int NetID) : packet_data(61) {

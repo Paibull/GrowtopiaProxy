@@ -186,12 +186,6 @@ void PlayerState::Warp(std::string worldName, ENetPeer* CLIENT, ENetPeer* SERVER
     p.text = "Warping to the world [" + newWorld + "]. This may take up to 2 seconds!";
     SendGamePacket(CLIENT, p);
 
-    /* The captured SERVER peer is deliberately not used past this point.
-       quit_to_exit makes the server hand the client to a sub-server, which
-       replaces both peers within about a second -- so by the time the sleep
-       below ends, the peer this command arrived on is dead and the join
-       request goes nowhere. That was "Unable to enter this world": the quit
-       landed, the join never did. Ask for the current peer instead. */
     std::thread([newWorld = std::move(newWorld)]() {
         if (!Player.world.empty()) {
             std::string quitPacket = "action|quit_to_exit\n";
@@ -345,9 +339,6 @@ void PlayerState::AutoFarm(ENetPeer* CLIENT, ENetPeer* SERVER) {
     std::uniform_int_distribution<int> punchDelay(200, 250);
     std::uniform_int_distribution<int> placeDelay(520, 570);
 
-    /* Re-read the peer each pass. This loop outlives world changes, and every
-       one of those swaps the server peer for a new one -- the pointer this was
-       started with is dead the moment the player leaves the world. */
     while (autofarm.running) {
         ENetPeer* server = Network.CurrentServerPeer();
 

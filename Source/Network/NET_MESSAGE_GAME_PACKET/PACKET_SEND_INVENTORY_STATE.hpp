@@ -18,10 +18,6 @@ public:
         int inv_size;
         std::memcpy(&inv_size, packet->data + 61, 4);
 
-        /* inv_size comes straight off the wire and ends up as Inventory::size,
-           which AddItem compares against with static_cast<size_t> -- a negative
-           value became a huge limit and disabled the slot cap entirely. Clamp
-           to what the packet can actually describe: 4 bytes per entry. */
         const size_t maxEntries = (packet->dataLength - 67) / 4;
         if (inv_size < 0) inv_size = 0;
         if (static_cast<size_t>(inv_size) > maxEntries) inv_size = static_cast<int>(maxEntries);

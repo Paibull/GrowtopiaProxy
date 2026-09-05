@@ -41,11 +41,6 @@ public:
         const uint8_t* data = packet->data;
         const size_t size = packet->dataLength;
 
-        /* Every read below was unchecked. name_len is a byte off the wire, so
-           a short or truncated map-data packet read up to 255 bytes past the
-           end of the ENet buffer and copied them into world_name. The world
-           name is the only thing this handler actually produces, so bail
-           quietly rather than parse a packet that cannot hold one. */
         if (size < 78) return true;
 
         uint8_t name_len = data[66];
@@ -64,10 +59,6 @@ public:
 
         Player.world = world_name;
 
-        /* The tile walk that used to be here called an empty parse_tile, so it
-           produced nothing while forming pointers past the end of the buffer
-           and dividing by xSize, which is zero on a malformed packet. Add it
-           back with parse_tile when there is something to parse. */
 
         return true;
     }

@@ -5,11 +5,6 @@
 
 #include <thread>
 
-/* Ctrl+C, the close button, logoff and shutdown all land here. Without it the
-   redirect outlives the proxy: hosts still points growtopia1/2.com at
-   127.0.0.1 with nothing listening there, so the game hangs on "Getting server
-   address" and gives no clue why. Leaving a machine in that state on exit is
-   not acceptable, so put it back on the way out. */
 static BOOL WINAPI ConsoleHandler(DWORD signal) {
     switch (signal) {
         case CTRL_C_EVENT:
@@ -47,12 +42,6 @@ auto main() -> int {
     FastLog::Logger::instance().start();
     FastLog::Logger::set_thread_name("MAIN");
 
-    /* Deliberately not killing an already-running client. Growtopia limits how
-       many logins an IP may make, and restarting the game spends one every
-       time -- which during development means every proxy restart spends one,
-       for no gain. The redirect is applied at DNS lookup time, so a client
-       sitting at the menu picks it up on the next 'Play Online' without
-       needing to be restarted at all. */
     if (System::findProcess(L"Growtopia.exe") != -1) {
         LOG_WARN("Growtopia.exe is already running; leaving it alone.");
         LOG_WARN("Go to the menu and press 'Play Online' to route it through the proxy.");

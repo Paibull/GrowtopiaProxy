@@ -16,11 +16,6 @@ public:
     ENetAddress& GetProxyAddress();
     ENetAddress& GetServerAddress();
 
-    /* The live peers for the session in progress. Anything that outlives a
-       single packet -- the Warp thread, /farm, /spam, a Lua script -- has to
-       ask for these rather than hold a pointer, because Growtopia hands the
-       client to a sub-server on every world change and both peers are replaced
-       when it does. Returns nullptr while no session is mapped. */
     ENetPeer* CurrentServerPeer();
     ENetPeer* CurrentClientPeer();
 
@@ -29,13 +24,6 @@ public:
     std::unordered_map<ENetPeer*, ENetPeer*> client_to_server;
     std::unordered_map<ENetPeer*, ENetPeer*> server_to_client;
 
-    /* Guards the two maps AND every ENet host/peer call. ENet has no internal
-       locking, so the service loop and the worker threads (Lua, /farm, /spam,
-       Warp) must not touch a host at the same time.
-
-       Recursive because the service loop holds it across enet_host_service,
-       and the packet handlers it calls -- COMMANDS, WRENCH,
-       PACKET_CALL_FUNCTION, Player::Drop -- lock it again on the way down. */
     std::recursive_mutex peer_mutex;
 
 public:

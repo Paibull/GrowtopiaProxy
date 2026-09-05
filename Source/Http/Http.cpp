@@ -15,12 +15,6 @@
 HttpManager Http;
 
 bool HttpManager::Fetcher(const std::string& clientBody) {
-    /* A server configured by hand wins over the fetch. Pointing the client at a
-       private server is the only way to iterate on a feature without spending a
-       real account on every mistake -- but read the warning in Config.hpp: a
-       private server enforces nothing, so it proves a feature WORKS, never that
-       it is safe on the real servers. Watch the log for
-       PACKET_APP_INTEGRITY_FAIL; that fires either way. */
     if (!Server.IP.empty() && Server.UDP != 0) {
         FastLog::Logger::set_thread_name("HTTP");
         LOG_WARN("Using the server configured in Config.hpp ({}:{}); skipping the growtopia2.com fetch.",
@@ -62,15 +56,6 @@ bool HttpManager::Fetcher(const std::string& clientBody) {
     int retry_count = 0;
     const int max_retries = 3;
 
-    /* A transport failure gives a falsy Result, but growtopia2.com answering
-       503 during maintenance gives a truthy one carrying an error page. The
-       old loop only retried the first case, then parsed the error page and
-       reported the missing fields as if the format had changed. */
-    /* Forward what the client actually sent rather than rebuilding it from
-       Config. The client knows its own version and protocol; the constants in
-       Config.hpp go stale on every Growtopia update and then this POST gets an
-       update-required page instead of server data. They stay as the fallback
-       for a request that arrives with no body. */
     const std::string body = clientBody.empty()
         ? "version=" + Client.VERSION + "&protocol=" + Client.PROTOCOL + "&platform=" + Client.PLATFORM
         : clientBody;
@@ -113,10 +98,6 @@ bool HttpManager::Fetcher(const std::string& clientBody) {
 
     Server.IP = server;
 
-    /* std::stoi throws on a non-numeric body and this runs inside an httplib
-       handler, so the throw took the HTTP thread down with it. The range check
-       matters too: the field is a uint16_t, and stoi would happily hand back
-       something that truncates to a working-looking wrong port. */
     int parsedPort = 0;
     try { parsedPort = std::stoi(port); }
     catch (...) { parsedPort = 0; }
@@ -173,10 +154,6 @@ void HttpManager::Injector() {
 
     ensure_cert_files_exist();
 
-    /* ensure_cert_files_exist is synchronous, so if the files still are not
-       there the write failed -- a read-only or non-writable working directory.
-       The old code span here forever waiting for a second writer that does not
-       exist, with no output at all. */
     if (!std::filesystem::exists(CERT_FILE) || !std::filesystem::exists(KEY_FILE)) {
         LOG_ERROR("Couldn't write {} / {}. Is the working directory writable?", CERT_FILE, KEY_FILE);
         return;
@@ -235,11 +212,6 @@ void HttpManager::Injector() {
 
         LOG_WARN("Request: /growtopia/server_data.php");
 
-        /* If a fetch is already in flight, this request is almost certainly
-           our own outbound POST arriving back here -- the redirect to
-           127.0.0.1 outliving the hosts edit. Answering it instead of
-           recursing keeps one bad resolution from turning into a stack of
-           nested fetches. */
         bool inFlight = false;
         if (!fetching.compare_exchange_strong(inFlight, true)) {
             LOG_ERROR("server_data.php hit while a fetch is in flight -- the proxy resolved "
@@ -253,16 +225,9 @@ void HttpManager::Injector() {
         fetching = false;
 
         if (!ok) {
-            /* Fetcher clears the hosts redirect on entry so it can reach the
-               real growtopia2.com, and only puts it back on the success path.
-               Every early return therefore left the client resolving the real
-               server and bypassing the proxy entirely. */
             System::editHosts(Local.IP);
         }
 
-        /* This was `ok && cache.empty()`, so a failed fetch fell to the else
-           and answered 200 with a stale or empty body -- the client then sat
-           on a connection that never completed instead of showing an error. */
         if (!ok || server_data_cache.empty()) {
             res.status = 500;
             res.set_content("Internal Server Error: No server data available.", "text/plain");

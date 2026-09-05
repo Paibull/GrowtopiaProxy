@@ -64,14 +64,7 @@ namespace FastLog {
             if (GetConsoleMode(hOut, &dwMode)) SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
         }
 #endif
-        /* Opened before the writer thread starts so it is never read half-set.
-           Truncated per run: this is a diagnostic tail, not an archive. A failure
-           to open costs the mirror and nothing else -- the console still works. */
         if (!file_) {
-            /* _fsopen, not fopen_s: fopen_s opens with no sharing at all, which
-               locks the file for the whole run -- unreadable while the proxy is
-               up, which defeats the point of writing it. _SH_DENYWR lets anyone
-               read the log live while keeping other writers out. */
             file_ = _fsopen("proxy.log", "w", _SH_DENYWR);
         }
 
@@ -139,11 +132,6 @@ namespace FastLog {
             Slot& slot = queue_[index % QUEUE_SIZE];
 
             if (!slot.ready.load(std::memory_order_acquire)) {
-                /* yield() returns immediately when nothing else wants the core,
-                   so an idle logger used to burn one continuously -- 236 seconds
-                   of CPU while sitting at the menu. Spin briefly so a burst is
-                   still picked up without delay, then sleep, because nothing
-                   here needs sub-millisecond latency. */
                 if (++idle_spins < 64) std::this_thread::yield();
                 else std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
@@ -180,9 +168,6 @@ namespace FastLog {
                 std::fprintf(file_, "[%s] [%-5s] [%s] ", ts, lvl, tname);
                 std::fwrite(slot.data, 1, slot.size, file_);
                 std::fwrite("\n", 1, 1, file_);
-                /* Flushed per line on purpose: the runs worth reading are the ones
-                   that end in a crash or a kill, and a buffered tail is exactly the
-                   part that would be lost. */
                 std::fflush(file_);
             }
 

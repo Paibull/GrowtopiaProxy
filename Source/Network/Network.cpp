@@ -48,9 +48,6 @@ std::string NetworkManager::Setup(int which) {
         STATUS = 1;
     }
     else if (which == 2) {
-        /* Server.IP / Server.UDP are filled in by the HTTP fetch. Reaching
-           here without them means the fetch never completed, and connecting to
-           0.0.0.0:0 just hangs with no explanation. */
         if (Server.IP.empty() || Server.UDP == 0) return "Server address not fetched yet!";
 
         memset(&SERVER_ADDRESS, 0, sizeof(SERVER_ADDRESS));
@@ -97,9 +94,6 @@ void NetworkManager::Injector() {
             LOG_WARN("Starting Growtopia.exe");
             waiting_logged = true;
 
-            /* std::wstring has no null-pointer constructor -- building one
-               from a missing LOCALAPPDATA was an immediate crash rather than a
-               message telling you to start the game yourself. */
             const wchar_t* localAppData = _wgetenv(L"LOCALAPPDATA");
             if (localAppData) System::startProcess(std::wstring(localAppData) + L"\\Growtopia\\Growtopia.exe");
             else LOG_ERROR("LOCALAPPDATA is not set; start Growtopia.exe yourself.");
@@ -123,12 +117,6 @@ void NetworkManager::Injector() {
 
     while (STATUS == 2) {
         {
-        /* Held across the whole service pass. ENet does no locking of its own,
-           so a Lua script or /farm calling enet_peer_send while we are inside
-           enet_host_service corrupts the host's outgoing command queue. The
-           worker threads take the same lock in SendPacket / CreatePacket /
-           send_raw; the sleep below is deliberately outside it so they get a
-           chance to run. */
         std::lock_guard<std::recursive_mutex> lock(peer_mutex);
 
         if (PROXY_HOST) {
@@ -146,22 +134,9 @@ void NetworkManager::Injector() {
                         {
                             char dialIP[64]{};
                             enet_address_get_host_ip(&SERVER_ADDRESS, dialIP, sizeof(dialIP));
-                            /* This fork's enet_address_get_host_ip already renders
-                               the port, so don't append it again. */
                             LOG_WARN("Dialing server {} (type {})", dialIP, (int)SERVER_ADDRESS.type);
                         }
 
-                        /* One client at a time, so a new connection replaces
-                           whatever was mapped before. Tear the old session's
-                           upstream link down first -- clearing the maps on its
-                           own left the previous server peer connected to the
-                           real Growtopia server with nothing routing to it.
-
-                           This has to happen BEFORE enet_host_connect, not
-                           after: SERVER_HOST is created with room for exactly
-                           one peer, so a stale peer still holding that slot
-                           makes the connect below fail outright. The sub-server
-                           handoff reconnects, so this path runs on every login. */
                         for (auto& [old_client, old_server] : client_to_server) {
                             if (old_server) enet_peer_disconnect_now(old_server, 0);
                             if (old_client && old_client != client_peer) enet_peer_disconnect_now(old_client, 0);
@@ -204,11 +179,6 @@ void NetworkManager::Injector() {
                         auto it = client_to_server.find(client_peer);
                         if (it != client_to_server.end()) server_peer = it->second;
 
-                        /* enet_host_service hands us ownership of the packet.
-                           It only passes to enet_peer_send on success, so every
-                           other path -- no route, handler swallowed it, send
-                           refused -- has to destroy it or it leaks for the life
-                           of the process. */
                         bool forwarded = false;
                         if (server_peer && HandlePacket(CLIENT_PROXY_SERVER, PROXY_EVENT.packet, server_peer))
                             forwarded = enet_peer_send(server_peer, 0, PROXY_EVENT.packet) == 0;

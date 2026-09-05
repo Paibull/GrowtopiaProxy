@@ -18,11 +18,6 @@ public:
     std::atomic<bool> fetching = false;
     std::string server_data_cache;
 
-    /* Gate for the local control endpoint. It is not decoration: while the
-       proxy runs, www.growtopia1/2.com resolve to 127.0.0.1, so any page the
-       user happens to open could otherwise POST commands into an
-       administrator-privileged process. Generated per run and printed to the
-       log; requests without it are refused. */
     std::string control_token;
 
 private:
@@ -38,15 +33,6 @@ private:
         return src.substr(pos, end - pos);
     }
 
-    /* Self-signed leaf for growtopia1/2.com, valid to 2046. The pair it
-       replaced expired on 2024-04-12 and stopped being usable a year later;
-       the filenames changed with it so an old, expired growtopia.pem left in
-       a release folder is ignored rather than silently reused -- the writes
-       below only fire when the file is missing.
-
-       The private key is in the binary on purpose: it only ever signs a
-       handshake the proxy makes with the client on 127.0.0.1, so it protects
-       nothing and is not a secret. */
     void ensure_cert_files_exist() {
         const char* cert_file = CERT_FILE;
         const char* key_file = KEY_FILE;
