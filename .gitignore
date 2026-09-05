@@ -1,0 +1,14 @@
+# Build output. Source/x64 landed in a commit once; keeping it out for good.
+x64/
+Source/x64/
+*.obj
+*.iobj
+*.ipdb
+*.pdb
+*.tlog
+*.recipe
+
+# Written at runtime next to the exe
+proxy.log
+proxy.pem
+proxy.key.pem
