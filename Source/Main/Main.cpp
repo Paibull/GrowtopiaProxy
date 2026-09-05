@@ -5,12 +5,33 @@
 
 #include <thread>
 
+/* Ctrl+C, the close button, logoff and shutdown all land here. Without it the
+   redirect outlives the proxy: hosts still points growtopia1/2.com at
+   127.0.0.1 with nothing listening there, so the game hangs on "Getting server
+   address" and gives no clue why. Leaving a machine in that state on exit is
+   not acceptable, so put it back on the way out. */
+static BOOL WINAPI ConsoleHandler(DWORD signal) {
+    switch (signal) {
+        case CTRL_C_EVENT:
+        case CTRL_BREAK_EVENT:
+        case CTRL_CLOSE_EVENT:
+        case CTRL_LOGOFF_EVENT:
+        case CTRL_SHUTDOWN_EVENT:
+            System::editHosts("");          /* also flushes the DNS cache */
+            FastLog::Logger::instance().stop();
+            return FALSE;                   /* let the default handler finish the exit */
+        default:
+            return FALSE;
+    }
+}
+
 auto main() -> int {
     if (!System::IsTrueAdmin() && !System::RelaunchAsAdmin()) {
         LOG_ERROR("Couldn't relaunched the program as admin!");
         return EXIT_FAILURE;
     }
     System::EnableDebugPrivilege();
+    SetConsoleCtrlHandler(ConsoleHandler, TRUE);
     
     SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
     SetProcessPriorityBoost(GetCurrentProcess(), TRUE);
