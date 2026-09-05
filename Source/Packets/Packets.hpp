@@ -50,7 +50,8 @@ enum : uint8_t {
     OnSpawn,
     OnCountryState,
     OnSetClothing,
-    OnSetFreezeState
+    OnSetFreezeState,
+    OnZoomCamera
 };
 
 inline const char* PacketName(uint8_t type) {
@@ -65,6 +66,7 @@ inline const char* PacketName(uint8_t type) {
         case OnCountryState:                         return "OnCountryState";
         case OnSetClothing:                          return "OnSetClothing";
         case OnSetFreezeState:                       return "OnSetFreezeState";
+        case OnZoomCamera:                           return "OnZoomCamera";
 
         default:                                     return "Unknown";
     }
@@ -124,6 +126,14 @@ template<> struct GamePacket<OnSetFreezeState> {
     static constexpr uint8_t type = OnSetFreezeState;
     uint32_t seconds = 0;
 };
+/* Observed from the server as OnZoomCamera(FLOAT 10000.0, UINT 1000): the
+   zoom level, then how long the camera takes to travel there in ms. Whether
+   the client clamps the level is not known -- that is what /zoom is for. */
+template<> struct GamePacket<OnZoomCamera> {
+    static constexpr uint8_t type = OnZoomCamera;
+    float zoom = 10000.0f;
+    uint32_t duration = 1000;
+};
 
 
 class GamePacketBuilder;
@@ -166,6 +176,9 @@ inline void Serialize(GamePacketBuilder& p, const GamePacket<OnSetClothing>& v) 
 }
 inline void Serialize(GamePacketBuilder& p, const GamePacket<OnSetFreezeState>& v) {
     p.Insert(v.seconds);
+}
+inline void Serialize(GamePacketBuilder& p, const GamePacket<OnZoomCamera>& v) {
+    p.Insert(v.zoom).Insert(v.duration);
 }
 
 
