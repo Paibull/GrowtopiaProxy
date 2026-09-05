@@ -16,6 +16,9 @@ public:
 
     sol::state& State() { return m_lua; }
 
+    /* Kept only so /lua can refuse to start with no session. The bindings
+       resolve peers through NetworkManager at call time instead: a script
+       outlives world changes, and each one replaces both peers. */
     void SetPeers(ENetPeer* client, ENetPeer* server) {
         m_client = client;
         m_server = server;

@@ -16,6 +16,14 @@ public:
     ENetAddress& GetProxyAddress();
     ENetAddress& GetServerAddress();
 
+    /* The live peers for the session in progress. Anything that outlives a
+       single packet -- the Warp thread, /farm, /spam, a Lua script -- has to
+       ask for these rather than hold a pointer, because Growtopia hands the
+       client to a sub-server on every world change and both peers are replaced
+       when it does. Returns nullptr while no session is mapped. */
+    ENetPeer* CurrentServerPeer();
+    ENetPeer* CurrentClientPeer();
+
 
 public:
     std::unordered_map<ENetPeer*, ENetPeer*> client_to_server;

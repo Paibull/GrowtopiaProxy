@@ -3,6 +3,7 @@
 #include "../Player/Player.hpp"
 #include "../Packets/Packets.hpp"
 #include "../Network/Handler.hpp"
+#include "../Network/Network.hpp"
 #include <filesystem>
 
 /* @important: Put in all for-while codes this line: 
@@ -69,18 +70,24 @@ void LuaManager::RegisterFunctions() {
 
     /* @note: Some Player Functions */
     m_lua.set_function("warp", [this](const std::string& worldName) {
-        if (!m_client || !m_server) { LOG_ERROR("Peers not set!"); return; }
-        Player.Warp(worldName, m_client, m_server);
+        ENetPeer* client = Network.CurrentClientPeer();
+        ENetPeer* server = Network.CurrentServerPeer();
+        if (!client || !server) { LOG_ERROR("No live session!"); return; }
+        Player.Warp(worldName, client, server);
     });
 
     m_lua.set_function("drop", [this](int id, int count) {
-        if (!m_client || !m_server) { LOG_ERROR("Peers not set!"); return; }
-        Player.Drop(id, count, m_client, m_server);
+        ENetPeer* client = Network.CurrentClientPeer();
+        ENetPeer* server = Network.CurrentServerPeer();
+        if (!client || !server) { LOG_ERROR("No live session!"); return; }
+        Player.Drop(id, count, client, server);
     });
 
     m_lua.set_function("trash", [this](int id, int count) {
-        if (!m_client || !m_server) { LOG_ERROR("Peers not set!"); return; }
-        Player.Trash(id, count, m_client, m_server);
+        ENetPeer* client = Network.CurrentClientPeer();
+        ENetPeer* server = Network.CurrentServerPeer();
+        if (!client || !server) { LOG_ERROR("No live session!"); return; }
+        Player.Trash(id, count, client, server);
     });
     /* @note: Some Player Functions */
 
@@ -88,39 +95,44 @@ void LuaManager::RegisterFunctions() {
 
     /* @note: Some Variant Packets */
     m_lua.set_function("OnConsoleMessage", [this](const std::string& text) {
-        if (!m_client) { LOG_ERROR("Peers not set!"); return; }
+        ENetPeer* client = Network.CurrentClientPeer();
+        if (!client) { LOG_ERROR("No live session!"); return; }
         GamePacket<OnConsoleMessage> p;
         p.text = text;
-        SendGamePacket(m_client, p);
+        SendGamePacket(client, p);
     });
 
     m_lua.set_function("OnTalkBubble", [this](const std::string& text) {
-        if (!m_client) { LOG_ERROR("Peers not set!"); return; }
+        ENetPeer* client = Network.CurrentClientPeer();
+        if (!client) { LOG_ERROR("No live session!"); return; }
         GamePacket<OnTalkBubble> p;
         p.netId = Player.netID;
         p.text = text;
-        SendGamePacket(m_client, p);
+        SendGamePacket(client, p);
     });
 
     m_lua.set_function("OnTextOverlay", [this](const std::string& text) {
-        if (!m_client) { LOG_ERROR("Peers not set!"); return; }
+        ENetPeer* client = Network.CurrentClientPeer();
+        if (!client) { LOG_ERROR("No live session!"); return; }
         GamePacket<OnTextOverlay> p;
         p.text = text;
-        SendGamePacket(m_client, p);
+        SendGamePacket(client, p);
     });
 
     m_lua.set_function("OnDialogRequest", [this](const std::string& text) {
-        if (!m_client) { LOG_ERROR("Peers not set!"); return; }
+        ENetPeer* client = Network.CurrentClientPeer();
+        if (!client) { LOG_ERROR("No live session!"); return; }
         GamePacket<OnDialogRequest> p;
         p.text = text;
-        SendGamePacket(m_client, p);
+        SendGamePacket(client, p);
     });
 
     m_lua.set_function("OnSetFreezeState", [this](uint32_t seconds) {
-        if (!m_client) { LOG_ERROR("Peers not set!"); return; }
+        ENetPeer* client = Network.CurrentClientPeer();
+        if (!client) { LOG_ERROR("No live session!"); return; }
         GamePacket<OnSetFreezeState> p;
         p.seconds = seconds;
-        SendGamePacket(m_client, p, Player.netID);
+        SendGamePacket(client, p, Player.netID);
     });
     /* @note: Some Variant Packets */
 
@@ -128,8 +140,10 @@ void LuaManager::RegisterFunctions() {
 
     /* @note: Some Custom Packets */
     m_lua.set_function("sendPacket", [this](const std::string& target, int type, const std::string& text) {
-        if (!m_client || !m_server) { LOG_ERROR("Peers not set!"); return; }
-        ENetPeer* peer = (target == "server") ? m_server : m_client;
+        ENetPeer* client = Network.CurrentClientPeer();
+        ENetPeer* server = Network.CurrentServerPeer();
+        if (!client || !server) { LOG_ERROR("No live session!"); return; }
+        ENetPeer* peer = (target == "server") ? server : client;
         {
             std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
             SendPacket(peer, type, text.c_str(), text.length());
@@ -137,7 +151,9 @@ void LuaManager::RegisterFunctions() {
     });
 
     m_lua.set_function("sendPlayerMoving", [this](sol::table t) {
-        if (!m_client || !m_server) { LOG_ERROR("Peers not set!"); return; }
+        ENetPeer* client = Network.CurrentClientPeer();
+        ENetPeer* server = Network.CurrentServerPeer();
+        if (!client || !server) { LOG_ERROR("No live session!"); return; }
 
         PlayerMovingPacket pkt;
 
@@ -159,7 +175,7 @@ void LuaManager::RegisterFunctions() {
         }
 
         std::string target = t["target"].valid() ? t["target"].get<std::string>() : "server";
-        ENetPeer* peer = (target == "client") ? m_client : m_server;
+        ENetPeer* peer = (target == "client") ? client : server;
 
         pkt.Send(peer);
     });

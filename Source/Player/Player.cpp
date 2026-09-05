@@ -186,20 +186,26 @@ void PlayerState::Warp(std::string worldName, ENetPeer* CLIENT, ENetPeer* SERVER
     p.text = "Warping to the world [" + newWorld + "]. This may take up to 2 seconds!";
     SendGamePacket(CLIENT, p);
 
-    std::thread([newWorld = std::move(newWorld), SERVER]() {
+    /* The captured SERVER peer is deliberately not used past this point.
+       quit_to_exit makes the server hand the client to a sub-server, which
+       replaces both peers within about a second -- so by the time the sleep
+       below ends, the peer this command arrived on is dead and the join
+       request goes nowhere. That was "Unable to enter this world": the quit
+       landed, the join never did. Ask for the current peer instead. */
+    std::thread([newWorld = std::move(newWorld)]() {
         if (!Player.world.empty()) {
             std::string quitPacket = "action|quit_to_exit\n";
-            {
-                std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
-                SendPacket(SERVER, Network.NET_MESSAGE_GAME_MESSAGE, quitPacket.c_str(), static_cast<int>(quitPacket.length()));
-            }
+            if (ENetPeer* server = Network.CurrentServerPeer())
+                SendPacket(server, Network.NET_MESSAGE_GAME_MESSAGE, quitPacket.c_str(), static_cast<int>(quitPacket.length()));
+
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         }
+
         std::string joinPacket = "action|join_request\nname|" + newWorld + "\ninvitedWorld|0\n\n";
-        {
-            std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
-            SendPacket(SERVER, Network.NET_MESSAGE_GAME_MESSAGE, joinPacket.c_str(), static_cast<int>(joinPacket.length()));
-        }
+        if (ENetPeer* server = Network.CurrentServerPeer())
+            SendPacket(server, Network.NET_MESSAGE_GAME_MESSAGE, joinPacket.c_str(), static_cast<int>(joinPacket.length()));
+        else
+            LOG_ERROR("Warp to {}: no server peer when the join request was due", newWorld);
     }).detach();
 }
 
@@ -339,20 +345,19 @@ void PlayerState::AutoFarm(ENetPeer* CLIENT, ENetPeer* SERVER) {
     std::uniform_int_distribution<int> punchDelay(200, 250);
     std::uniform_int_distribution<int> placeDelay(520, 570);
 
+    /* Re-read the peer each pass. This loop outlives world changes, and every
+       one of those swaps the server peer for a new one -- the pointer this was
+       started with is dead the moment the player leaves the world. */
     while (autofarm.running) {
-        if (AutofarmReady() && SERVER) {
+        ENetPeer* server = Network.CurrentServerPeer();
+
+        if (AutofarmReady() && server) {
             for (int i = 0; i < 3; i++) {
-                {
-                    std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
-                    Punch(autofarm.X, autofarm.Y, autofarm.punchX, autofarm.punchY, SERVER);
-                }
+                Punch(autofarm.X, autofarm.Y, autofarm.punchX, autofarm.punchY, server);
                 std::this_thread::sleep_for(std::chrono::milliseconds(punchDelay(gen)));
             }
-            
-            if (HasItem(autofarm.id)) {
-                std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
-                Place(autofarm.id, autofarm.X, autofarm.Y, autofarm.punchX, autofarm.punchY, SERVER);
-            }
+
+            if (HasItem(autofarm.id)) Place(autofarm.id, autofarm.X, autofarm.Y, autofarm.punchX, autofarm.punchY, server);
             std::this_thread::sleep_for(std::chrono::milliseconds(placeDelay(gen)));
         }
         else std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -369,19 +374,15 @@ void PlayerState::AutoSpam(ENetPeer* CLIENT, ENetPeer* SERVER) {
     std::uniform_int_distribution<size_t> dis(0, colors.size() - 1);
 
     while (autospam.running) {
+        /* Same reason as AutoFarm: the peer is looked up per message, never held. */
         std::string text1 = "action|input\n|text|" + (autospam.rainbow ? colors[dis(gen)] : "") + autospam.text1 + "\n";
-        {
-            std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
-            SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, text1.c_str(), static_cast<int>(text1.length()));
-        }
+        if (ENetPeer* server = Network.CurrentServerPeer())
+            SendPacket(server, Network.NET_MESSAGE_GENERIC_TEXT, text1.c_str(), static_cast<int>(text1.length()));
         std::this_thread::sleep_for(std::chrono::milliseconds(autospam.delay));
 
-
         std::string text2 = "action|input\n|text|" + (autospam.rainbow ? colors[dis(gen)] : "") + (autospam.text2.empty() ? autospam.text1 : autospam.text2) + "\n";
-        {
-            std::lock_guard<std::recursive_mutex> lock(Network.peer_mutex);
-            SendPacket(SERVER, Network.NET_MESSAGE_GENERIC_TEXT, text2.c_str(), static_cast<int>(text2.length()));
-        }
+        if (ENetPeer* server = Network.CurrentServerPeer())
+            SendPacket(server, Network.NET_MESSAGE_GENERIC_TEXT, text2.c_str(), static_cast<int>(text2.length()));
         std::this_thread::sleep_for(std::chrono::milliseconds(autospam.delay));
     }
 }

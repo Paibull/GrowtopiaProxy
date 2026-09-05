@@ -16,6 +16,18 @@ ENetHost* NetworkManager::GetServerHost() { return SERVER_HOST; }
 ENetAddress& NetworkManager::GetProxyAddress() { return PROXY_ADDRESS; }
 ENetAddress& NetworkManager::GetServerAddress() { return SERVER_ADDRESS; }
 
+ENetPeer* NetworkManager::CurrentServerPeer() {
+    std::lock_guard<std::recursive_mutex> lock(peer_mutex);
+    if (client_to_server.empty()) return nullptr;
+    return client_to_server.begin()->second;
+}
+
+ENetPeer* NetworkManager::CurrentClientPeer() {
+    std::lock_guard<std::recursive_mutex> lock(peer_mutex);
+    if (client_to_server.empty()) return nullptr;
+    return client_to_server.begin()->first;
+}
+
 
 std::string NetworkManager::Setup(int which) {
     if (which == 1) {
