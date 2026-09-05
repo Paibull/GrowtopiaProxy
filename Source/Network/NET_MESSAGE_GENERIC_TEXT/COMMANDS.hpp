@@ -125,36 +125,6 @@ public:
 
 			return false;
 		}
-		else if (Packet::Contains(command, "/zoom ")) {
-			/* Calibration tool. The server was seen sending OnZoomCamera(10000.0,
-			   1000), but nothing says whether the client clamps the level or what
-			   the scale means -- so make it settable and read the answer off the
-			   screen instead of guessing at it. */
-			std::string arg = Packet::ExtractCustom<std::string>(command, " ", 1, "\n");
-
-			float zoom = 0.0f;
-			try { zoom = std::stof(arg); }
-			catch (...) { zoom = 0.0f; }
-
-			std::string text;
-			if (zoom <= 0.0f) text = "Usage: /zoom <level>   (the server's own value is 10000)";
-			else {
-				GamePacket<OnZoomCamera> z;
-				z.zoom = zoom;
-				z.duration = 1000;
-				SendGamePacket(CLIENT, z);
-
-				text = "Zoom set to " + arg;
-			}
-
-			{
-				GamePacket<OnConsoleMessage> p;
-				p.text = text;
-				SendGamePacket(CLIENT, p);
-			}
-
-			return false;
-		}
 		else if (command == "/lua") {
 			GamePacket<OnDialogRequest> p;
 			p.text += "add_label_with_icon|big|`wLua-Script Menu|left|32|\n";
