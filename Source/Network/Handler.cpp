@@ -272,6 +272,25 @@ bool HandlePacket(int type, ENetPacket* packet, ENetPeer* to) {
                 case Network.PACKET_MODIFY_ITEM_INVENTORY: {
                     return PACKET_MODIFY_ITEM_INVENTORY::Inject(Method, Type, packet, CLIENT, SERVER, pm);
                 }
+
+                case Network.PACKET_APP_INTEGRITY_FAIL: {
+                    /* The client telling the server, unprompted, that its own state
+                       looks tampered with. This is what actually bans accounts: on
+                       2026-09-05 an injected OnZoomCamera with a divisor below 1
+                       produced this packet, and a 60-day automatic ban landed two
+                       seconds later.
+
+                       It is still forwarded, deliberately. Dropping it would be
+                       building anti-cheat evasion, which is a different thing from
+                       making the proxy safe to develop against. What the proxy owes
+                       you is the warning -- so a feature that trips this is caught on
+                       the first test rather than the first ban, including on a
+                       private server, where nothing else will ever tell you. */
+                    LOG_ERROR("PACKET_APP_INTEGRITY_FAIL -- the client just reported ITSELF to the server.");
+                    LOG_ERROR("Whatever was injected last is detected as tampering. Stop using it.");
+                    LOG_ERROR("On the real Growtopia servers an automatic ban follows within seconds.");
+                    return true;
+                }
                 default: {
                     return true;
                 }
