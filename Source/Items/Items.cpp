@@ -92,7 +92,7 @@ std::string getGrowtopiaItemsPath() {
 /* @important: the highest items.dat layout this parser knows. Everything below
    is written against it; a newer file has fields we cannot place, and guessing
    would produce a silently wrong item table rather than an obvious failure. */
-static constexpr uint8_t ITEMS_DAT_MAX_VERSION = 24;
+static constexpr uint8_t ITEMS_DAT_MAX_VERSION = 26;
 
 /* Slack appended after the file so that a desynced read cannot leave the
    allocation. The parser does 17 unchecked raw-pointer reads; making every one
@@ -188,8 +188,16 @@ std::string InjectItems() {
             for (uint32_t skip = 1; skip <= ITEMS_DAT_MAX_SKEW; ++skip) {
                 if (pos + skip + 4 > dataEnd) break;
                 if (readU32(im_data, pos + skip) == i) {
-                    extraPerRecord += skip;
                     pos += skip;
+
+                    /* Only the first correction becomes the running baseline.
+                       A later one is this record's own data -- a field that is
+                       empty everywhere else -- and folding it into the baseline
+                       would push every following record too far, which the
+                       forward-only scan below can never undo. That is exactly
+                       how one odd item used to cost the other 268. */
+                    if (extraPerRecord == 0) extraPerRecord = skip;
+
                     resynced = true;
                     break;
                 }
@@ -333,6 +341,22 @@ std::string InjectItems() {
            With `==`, a v25 file skips this byte and every record after the
            first is read at the wrong offset. */
         if (version >= 24) pos += sizeof(uint8_t); // @date December 2025
+        if (version >= 25)
+        {
+            /* A length-prefixed effect name, then an int and a byte. Empty on
+               all but one item in the v26 file this was worked out from
+               (16088 "Bandage Cannon" -> "BandageCannonPlayerHitFx", 3000),
+               which is why it passed for so long as seven bytes of padding:
+               2 for a zero length + 5 = 7, and 2 + 24 + 5 = 31 for the one
+               item that fills it. Guessing the padding is what broke the
+               parser at item 16089 -- the record after it. */
+            len = *reinterpret_cast<short*>(&im_data[pos]);
+            pos += sizeof(short);
+            pos += len;
+
+            pos += sizeof(int);
+            pos += sizeof(uint8_t);
+        }
 
         /* Whatever a newer version appended beyond what we know, learned from
            the file itself rather than hardcoded. See the resync below. */
