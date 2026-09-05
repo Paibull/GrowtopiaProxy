@@ -63,7 +63,12 @@ namespace FastLog {
         void push(Level lvl, const char* data, size_t size) noexcept;
         void writer_loop() noexcept;
 
-        static constexpr size_t QUEUE_SIZE = 1 << 15;
+        /* 32768 slots at 16 KB each is half a gigabyte, reserved up front, for a
+           queue the writer drains continuously -- the proxy sat at 543 MB while
+           idle at the menu because of this alone. 1024 still buffers far more
+           than the writer can fall behind by; a full ring blocks the producer
+           rather than losing anything. */
+        static constexpr size_t QUEUE_SIZE = 1 << 10;
         static constexpr size_t MAX_MSG_SIZE = 16384;
 
         struct alignas(64) Slot {

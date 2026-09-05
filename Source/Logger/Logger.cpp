@@ -133,14 +133,22 @@ namespace FastLog {
     }
 
     void Logger::writer_loop() noexcept {
+        unsigned idle_spins = 0;
         while (running_.load(std::memory_order_acquire) || read_index_.load() != write_index_.load()) {
             uint32_t index = read_index_.load(std::memory_order_relaxed);
             Slot& slot = queue_[index % QUEUE_SIZE];
 
             if (!slot.ready.load(std::memory_order_acquire)) {
-                std::this_thread::yield();
+                /* yield() returns immediately when nothing else wants the core,
+                   so an idle logger used to burn one continuously -- 236 seconds
+                   of CPU while sitting at the menu. Spin briefly so a burst is
+                   still picked up without delay, then sleep, because nothing
+                   here needs sub-millisecond latency. */
+                if (++idle_spins < 64) std::this_thread::yield();
+                else std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
             }
+            idle_spins = 0;
 
             char ts[32]{};
             std::time_t t = static_cast<std::time_t>(slot.timestamp / 1000);
