@@ -109,6 +109,26 @@ bool System::editHosts(std::string ipAddress) {
     hostsFile << hostsContent;
     hostsFile.close();
 
+    /* Writing the file is only half of it. Windows copies hosts entries into
+       the DNS resolver cache with a TTL of days, and clearing the file does not
+       evict them -- so Fetcher would remove the redirect, resolve
+       www.growtopia2.com, still get 127.0.0.1 from the cache, and POST to this
+       proxy's own HTTPS server instead of Growtopia. The fetch then never
+       completes and the client waits forever.
+
+       Loaded dynamically: DnsFlushResolverCache is a stable dnsapi.dll export
+       but not in any SDK header, and a missing one should cost a stale cache
+       rather than a process that will not start. */
+    if (HMODULE dnsapi = LoadLibraryW(L"dnsapi.dll")) {
+        using FlushFn = BOOL(WINAPI*)();
+        if (auto flush = reinterpret_cast<FlushFn>(GetProcAddress(dnsapi, "DnsFlushResolverCache"))) {
+            if (!flush()) LOG_DEBUG("DnsFlushResolverCache returned false");
+        }
+        else LOG_DEBUG("dnsapi.dll has no DnsFlushResolverCache");
+        FreeLibrary(dnsapi);
+    }
+    else LOG_DEBUG("Couldn't load dnsapi.dll; DNS cache not flushed");
+
     FastLog::Logger::set_thread_name("FUNCTIONS");
     LOG_DEBUG("Edited hosts file [{}]", ipAddress);
 
