@@ -23,11 +23,25 @@ inline gLocal Local;
 
 
 struct gServer {
-	/* @important: Fetching from www.growtopia2.com(do not change) */
-	std::string IP = ""; // empty if real gt
+	/* Leave both empty to use the real Growtopia servers: they are filled in
+	   from www.growtopia2.com on the first 'Play Online'.
+
+	   Set them to point the client at a private server instead. That is the
+	   only way to iterate on a feature without spending a real account on
+	   every mistake -- but be clear about what it buys you. A private server
+	   enforces nothing, so it can show a feature WORKS; it can never show a
+	   feature is SAFE.
+
+	   The ban does not come from the server. It comes from the client, which
+	   reports its own state with PACKET_APP_INTEGRITY_FAIL to whatever server
+	   it happens to be talking to. A private server receives that and shrugs;
+	   the real one bans for it. So watch the log for that packet -- it is
+	   raised loudly, and on a private server it is the only thing that will
+	   ever tell you a feature would have cost you an account. */
+	std::string IP = ""; // empty = fetch from growtopia2.com
 	/* 0, not -1: the field is unsigned, so -1 silently became port 65535 -- a
 	   real port number that would be used as-is if the fetch never ran. */
-	uint16_t UDP = 0; // 0 if real gt
+	uint16_t UDP = 0; // 0 = fetch from growtopia2.com
 };
 inline gServer Server;
 

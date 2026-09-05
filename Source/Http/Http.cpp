@@ -15,6 +15,36 @@
 HttpManager Http;
 
 bool HttpManager::Fetcher(const std::string& clientBody) {
+    /* A server configured by hand wins over the fetch. Pointing the client at a
+       private server is the only way to iterate on a feature without spending a
+       real account on every mistake -- but read the warning in Config.hpp: a
+       private server enforces nothing, so it proves a feature WORKS, never that
+       it is safe on the real servers. Watch the log for
+       PACKET_APP_INTEGRITY_FAIL; that fires either way. */
+    if (!Server.IP.empty() && Server.UDP != 0) {
+        FastLog::Logger::set_thread_name("HTTP");
+        LOG_WARN("Using the server configured in Config.hpp ({}:{}); skipping the growtopia2.com fetch.",
+                 Server.IP, Server.UDP);
+
+        memset(&Network.GetServerAddress(), 0, sizeof(ENetAddress));
+        Network.GetServerAddress().type = ENET_ADDRESS_TYPE_IPV4;
+        if (enet_address_set_host_ip(&Network.GetServerAddress(), Server.IP.c_str()) != 0) {
+            LOG_ERROR("Config.hpp Server.IP is not a valid address: {}", Server.IP);
+            return false;
+        }
+        Network.GetServerAddress().port = Server.UDP;
+
+        server_data_cache =
+            "server|" + Local.IP + "\n"
+            "port|" + std::to_string(Local.UDP) + "\n"
+            "type|1\n"
+            "#maint|Maintenance message\n"
+            "RTENDMARKERBS1001";
+
+        System::editHosts(Local.IP);
+        return true;
+    }
+
     if (System::IsTrueAdmin()) System::editHosts("");
     else return false;
 
