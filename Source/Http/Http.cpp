@@ -3,6 +3,11 @@
 #include "../Main/Config.hpp"
 #include "../Functions/Functions.hpp"
 #include "../Network/Network.hpp"
+#include "../Network/Handler.hpp"
+#include "../Player/Player.hpp"
+#include "../Items/Items.hpp"
+
+#include <random>
 
 #include <thread>
 #include <chrono>
@@ -152,6 +157,44 @@ void HttpManager::Injector() {
         LOG_ERROR("Invalid SSL configuration!");
         return;
     }
+
+    {
+        std::random_device rd;
+        std::uniform_int_distribution<int> hex(0, 15);
+        control_token.clear();
+        for (int i = 0; i < 32; ++i) control_token += "0123456789abcdef"[hex(rd)];
+        LOG_WARN("Control token: {}", control_token);
+    }
+
+    auto authorised = [this](const Request& req) {
+        auto it = req.headers.find("X-Proxy-Token");
+        return it != req.headers.end() && it->second == control_token;
+    };
+
+    svr.Post("/proxy/command", [&](const Request& req, Response& res) {
+        FastLog::Logger::set_thread_name("HTTP");
+        if (!authorised(req)) { res.status = 403; res.set_content("bad token", "text/plain"); return; }
+
+        std::string cmd = req.body;
+        while (!cmd.empty() && (cmd.back() == '\n' || cmd.back() == '\r')) cmd.pop_back();
+        if (cmd.empty() || cmd[0] != '/') { res.status = 400; res.set_content("expected a /command", "text/plain"); return; }
+
+        if (!RunProxyCommand(cmd)) { res.status = 409; res.set_content("no live session", "text/plain"); return; }
+        res.set_content("ran " + cmd, "text/plain");
+    });
+
+    svr.Get("/proxy/status", [&](const Request& req, Response& res) {
+        FastLog::Logger::set_thread_name("HTTP");
+        if (!authorised(req)) { res.status = 403; res.set_content("bad token", "text/plain"); return; }
+
+        res.set_content(
+            "session|"  + std::string(Network.CurrentServerPeer() ? "live" : "none") + "\n"
+            "name|"     + Player.tankIDName + "\n"
+            "netID|"    + std::to_string(Player.netID) + "\n"
+            "world|"    + Player.world + "\n"
+            "items|"    + std::to_string(items.size()) + "\n",
+            "text/plain");
+    });
 
     svr.Get("/", [&](const Request& req, Response& res) {
         res.set_content("Simple C++ HTTP Server\nOptimized Version", "text/plain");

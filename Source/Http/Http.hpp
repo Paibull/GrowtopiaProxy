@@ -18,6 +18,13 @@ public:
     std::atomic<bool> fetching = false;
     std::string server_data_cache;
 
+    /* Gate for the local control endpoint. It is not decoration: while the
+       proxy runs, www.growtopia1/2.com resolve to 127.0.0.1, so any page the
+       user happens to open could otherwise POST commands into an
+       administrator-privileged process. Generated per run and printed to the
+       log; requests without it are refused. */
+    std::string control_token;
+
 private:
     static auto getValue(const std::string& src, const std::string& key) -> std::string {
         std::string search = key + "|";

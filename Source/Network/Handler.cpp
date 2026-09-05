@@ -76,6 +76,16 @@ void SendPacket(ENetPeer* peer, int num, const char* data, size_t len) {
     /* SendPacket(event.peer, type, string.c_str(), string.length()); */
 }
 
+bool RunProxyCommand(const std::string& command) {
+    ENetPeer* CLIENT = Network.CurrentClientPeer();
+    ENetPeer* SERVER = Network.CurrentServerPeer();
+    if (!CLIENT || !SERVER) return false;
+
+    LOG_WARN("Control endpoint ran: {}", command);
+    COMMANDS::Inject(command, CLIENT, SERVER);
+    return true;
+}
+
 bool HandlePacket(int type, ENetPacket* packet, ENetPeer* to) {
     /* @important: if you want to forward the packet without editing (the original) then use 'return true;'
         if you want to edit, after editing the packet, use 'return false;' so it won't send the original packet but your custom packet
