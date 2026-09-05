@@ -161,8 +161,21 @@ void HttpManager::Injector() {
         FastLog::Logger::set_thread_name("HTTP");
 
         LOG_WARN("Request: /growtopia/server_data.php");
-        
-        fetching = true;
+
+        /* If a fetch is already in flight, this request is almost certainly
+           our own outbound POST arriving back here -- the redirect to
+           127.0.0.1 outliving the hosts edit. Answering it instead of
+           recursing keeps one bad resolution from turning into a stack of
+           nested fetches. */
+        bool inFlight = false;
+        if (!fetching.compare_exchange_strong(inFlight, true)) {
+            LOG_ERROR("server_data.php hit while a fetch is in flight -- the proxy resolved "
+                      "www.growtopia2.com to itself. DNS cache still holds the redirect.");
+            res.status = 508;
+            res.set_content("Loop detected: the proxy resolved growtopia2.com to itself.", "text/plain");
+            return;
+        }
+
         bool ok = Fetcher(req.body);
         fetching = false;
 

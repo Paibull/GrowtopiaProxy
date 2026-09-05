@@ -4,6 +4,7 @@
 #include "HTTP/Http_Extension.h"
 #include <fstream>
 #include <filesystem>
+#include <atomic>
 
 class HttpManager {
 public:
@@ -14,7 +15,7 @@ public:
     void Injector();
 
 public:
-    bool fetching = false;
+    std::atomic<bool> fetching = false;
     std::string server_data_cache;
 
 private:
