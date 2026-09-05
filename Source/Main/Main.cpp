@@ -21,15 +21,21 @@ auto main() -> int {
     }
     atexit(enet_deinitialize);
 
-    if (System::findProcess(L"Growtopia.exe")) {
-        System::endProcess(L"Growtopia.exe");
-        Sleep(1500);
-    }
-
     System::editHosts("127.0.0.1");
 
     FastLog::Logger::instance().start();
     FastLog::Logger::set_thread_name("MAIN");
+
+    /* Deliberately not killing an already-running client. Growtopia limits how
+       many logins an IP may make, and restarting the game spends one every
+       time -- which during development means every proxy restart spends one,
+       for no gain. The redirect is applied at DNS lookup time, so a client
+       sitting at the menu picks it up on the next 'Play Online' without
+       needing to be restarted at all. */
+    if (System::findProcess(L"Growtopia.exe") != -1) {
+        LOG_WARN("Growtopia.exe is already running; leaving it alone.");
+        LOG_WARN("Go to the menu and press 'Play Online' to route it through the proxy.");
+    }
 
     LOG_WARN("Setting up all threads");
 
